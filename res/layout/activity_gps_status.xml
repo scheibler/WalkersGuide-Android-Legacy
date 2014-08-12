@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/linearLayoutMain"
+    android:orientation="vertical" >
+
+    <TextView
+        android:id="@+id/labelHeading"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dip"
+        android:textSize="22sp"
+        android:text="@string/title_gps_status_activity" />
+
+    <TextView
+        android:id="@+id/labelLatitude"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="@string/labelLatitude" />
+
+    <TextView
+        android:id="@+id/labelLongitude"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="@string/labelLongitude" />
+
+    <TextView
+        android:id="@+id/labelProvider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="@string/labelProvider" />
+
+    <TextView
+        android:id="@+id/labelSatellites"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="@string/labelSatellites" />
+
+    <TextView
+        android:id="@+id/labelAccuracy"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="@string/labelAccuracy" />
+
+    <TextView
+        android:id="@+id/labelAltitude"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="@string/labelAltitude" />
+
+    <TextView
+        android:id="@+id/labelSpeed"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="@string/labelSpeed" />
+
+    <TextView
+        android:id="@+id/labelBearing"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="@string/labelBearing" />
+
+    <TextView
+        android:id="@+id/labelCompass"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="@string/labelCompass" />
+
+    <TextView
+        android:id="@+id/labelTime"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="@string/labelTime" />
+
+    <Button
+        android:id="@+id/buttonLogging"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="@string/buttonStartLogging" />
+
+</LinearLayout>

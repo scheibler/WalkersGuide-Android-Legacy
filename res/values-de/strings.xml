@@ -1,0 +1,533 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Class: MainActivity -->
+    <string name="app_name">WalkersGuide</string>
+    <string name="startFragmentName">Start</string>
+    <string name="routerFragmentName">Router</string>
+    <string name="poiFragmentName">POI</string>
+    <string name="miscFragmentName">Sonstiges</string>
+    <string name="previousTabMessage">Wechsel zu %s</string>
+    <string name="nextTabMessage">Wechsel zu %s</string>
+    <string name="exitDialogTitle">Programm beenden</string>
+    <string name="exitDialogMessage">Möchten Sie das Programm wirklich beenden?\n\n
+        Drücken Sie auf "Ja" oder betätigen Sie die Zurück-Taste Ihres Gerätes, um das Programm zu beenden.
+        Drücken Sie auf "Nein" oder verwenden Sie die Menü-Taste Ihres Gerätes, um zu der Anwendung zurückzukehren.</string>
+
+    <!-- Class: StartFragment -->
+    <string name="buttonNewRoute">Route</string>
+    <string name="buttonIntermediatePoint">Zwischenziel</string>
+    <string name="buttonStartRouting">Route berechnen</string>
+    <string name="buttonStartRoutingClicked">Berechne</string>
+    <string name="buttonRouteObjectStartPoint">%1$d. Startpunkt: %2$s</string>
+    <string name="buttonRouteObjectIntermediatePoint">%1$d. Zwischenziel: %2$s</string>
+    <string name="buttonRouteObjectMultiIntermediatePoint">%1$d. Zwischenziel %2$d: %3$s</string>
+    <string name="buttonRouteObjectDestinationPoint">%1$d. Zielpunkt: %2$s</string>
+    <string name="buttonRouteObjectTransportSegment">%d. Das Wegsegment wird per ÖPNV zurückgelegt</string>
+    <string name="buttonRouteObjectFootwaySegment">%d. Das Wegsegment wird zu Fuß zurückgelegt</string>
+    <string name="messageEmptyStartPoint">Startpunkt der Route ist leer</string>
+    <string name="messageEmptyIntermediatePoint">Zwischenziel der Route ist leer</string>
+    <string name="messageEmptyDestinationPoint">Zielpunkt der Route ist leer</string>
+    <string name="messageEmptyJSONObject">Die Route konnte nicht erstellt werden.</string>
+    <string name="messageMultipleTransportSegments">Derzeit darf nur ein Wegsegment per ÖPNV zurückgelegt werden.</string>
+    <string name="messageRouteComputationStarted">Routenberechnung wurde gestartet.</string>
+    <string name="labelFootwayPlaceholder">Platzhalter für eine zu Fuß zurückzulegende Strecke</string>
+    <string name="labelTransportPlaceholder">Platzhalter für eine per ÖPNV zurückzulegende Strecke</string>
+    <string name="messageVersionRequestFailed">Version des Serverinterfaces nicht ermittelbar: Unbekannter Fehler</string>
+    <string name="messageVersionRequestAppTooOld">Ihre installierte Version dieses Programms ist
+        veraltet. Um die Anwendung weiterhin nutzen zu können, aktualisieren Sie diese bitte
+        zunächst auf die aktuelle Version.</string>
+    <string name="messageBugReportSendingFailed">Der Fehlerbericht konnte nicht gesendet werden.</string>
+    <string name="messageBugReportSendingSucceeded">Der Fehlerbericht wurde erfolgreich gesendet. Vielen Dank.</string>
+    <string name="messageTransportRouteDescription">Von %1$s nach %2$s</string>
+    <string name="messageRouteParsingFailed">Beim Verarbeiten der Route trat ein Fehler auf: %s</string>
+
+    <!-- Dialog: TimeSettingsDialog -->
+    <string name="labelTimeSettingsDialogHeading">Uhrzeit nicht synchronisiert</string>
+    <string name="labelTimeSettingsDialogDescription">Die Systemzeit Ihres Smartphones wird derzeit
+        nicht mit einem externen Zeitserver synchronisiert. Die vorliegende App benötigt allerdings
+        die exakte Uhrzeit. Bitte aktivieren Sie die Einstellung \"Zeit aus Netzwerk beziehen\" in
+        den Systemeinstellungen Ihres Gerätes.</string>
+    <string name="buttonShowTimeSettings">Uhrzeit-Einstellungen aufrufen</string>
+
+    <!-- Dialog: bugReportDialog -->
+    <string name="labelBugReportHeading">Fehlerbericht</string>
+    <string name="labelBugReportDescription">Das Programm hat einen Fehlerbericht von einem früheren
+        Absturz gefunden. Es besteht die Möglichkeit, diesen Bericht an den Entwickler der App zu
+        senden. Dadurch können Sie zur Verbesserung des Programms beitragen. Der Bericht kann
+        vor dem Senden eingesehen werden und enthält keine persönlichen Daten</string>
+    <string name="buttonShowBugReportDetails">Fehlerbericht anzeigen</string>
+    <string name="buttonSendBugReport">Fehlerbericht senden</string>
+    <string name="buttonDeleteBugReport">Fehlerbericht löschen</string>
+    <string name="messageBugReport">Fehlerbericht\n\n %s</string>
+
+    <!-- Dialog: RouteObjectDialog -->
+    <string name="labelRODialogEmptyStartPoint">Startpunkt:</string>
+    <string name="labelRODialogStartPoint">Startpunkt: %s</string>
+    <string name="labelRODialogEmptyIntermediatePoint">Zwischenziel:</string>
+    <string name="labelRODialogIntermediatePoint">Zwischenziel: %s</string>
+    <string name="labelRODialogEmptyMultiIntermediatePoint">Zwischenziel %d:</string>
+    <string name="labelRODialogMultiIntermediatePoint">Zwischenziel %1$d: %2$s</string>
+    <string name="labelRODialogEmptyDestinationPoint">Zielpunkt:</string>
+    <string name="labelRODialogDestinationPoint">Zielpunkt: %s</string>
+    <string name="buttonRouteObjectDetails">Details anzeigen</string>
+    <string name="buttonSwitchStartAndDestination">Start- und Zielpunkt tauschen</string>
+    <string name="buttonDeleteIntermediatePoint">Punkt löschen</string>
+    <string name="labelRODialogNewObject">Quelle für Routenobject auswählen</string>
+    <string name="buttonCurrentLocation">Aktuelle Position</string>
+    <string name="buttonCurrentLocationClicked">Positionssuche stoppen</string>
+    <string name="buttonAddress">Adresse</string>
+    <string name="buttonPOI">Point of Interest</string>
+    <string name="buttonHistory">Verlauf</string>
+    <string name="buttonFavorites">Favoriten</string>
+
+    <!-- Dialog: AddObjectToRoute -->
+    <string name="labelAOTRDialogHeading">An welche Stelle soll der neue Routenpunkt eingefügt werden?</string>
+    <string name="buttonAddObjectBeforeDestination">Vor dem Zielpunkt einfügen</string>
+    <string name="buttonAddObjectBeforeIntermediate">Vor dem Zwischenziel einfügen</string>
+    <string name="buttonAddObjectBeforeNIntermediate">Vor dem %d. Zwischenziel einfügen</string>
+
+    <!-- Dialog: Route -->
+    <string name="labelRouteDialogHeading">Eigenschaften der aktuellen Route</string>
+    <string name="labelRouteDialogNewRoute">Quelle für Route auswählen</string>
+    <string name="buttonNewEmptyRoute">Leere Route</string>
+    <string name="buttonNewRouteFromHistory">Bisherige Routen</string>
+
+    <!-- Class: RouterFragment -->
+    <string name="buttonSwitchRouteView">Nächste Anweisung</string>
+    <string name="buttonSwitchRouteViewClicked">Liste der Anweisungen</string>
+    <string name="buttonPrevPoint">Vorheriger</string>
+    <string name="buttonNextPoint">Nächster</string>
+    <string name="buttonDetails">Details</string>
+    <string name="buttonSimulation">Simulation</string>
+    <string name="buttonSimulationClicked">Simulation *</string>
+    <string name="arrayAADisabled">Deaktiviert</string>
+    <string name="arrayAAAddress">Adresse</string>
+    <string name="arrayAALatestPOI">Letzter POI</string>
+    <string name="arrayAARouteDescription">Routenbeschreibung</string>
+    <string name="arrayAAGPSStatus">GPS Status</string>
+    <string-array name="arrayAdditionalOptionsRF">
+        <item>@string/arrayAADisabled</item>
+        <item>@string/arrayAAAddress</item>
+        <item>@string/arrayAALatestPOI</item>
+        <item>@string/arrayAARouteDescription</item>
+        <item>@string/arrayAAGPSStatus</item>
+    </string-array>
+    <string name="messageRouteDescription">Beschreibung: %s</string>
+    <string name="messageNoPOIInRange">Kein POI in der Nähe</string>
+    <string name="messageLatestPOI">POI: %s</string>
+    <string name="messageCurrentAddress">Adresse: %s</string>
+    <string name="messageNoRouteLoaded">Noch keine Route geladen</string>
+    <string name="messageTwentyFiveMeters">Noch 25 Meter vom nächsten Punkt entfernt</string>
+    <string name="messageReachedIntermediatePointAhead">Punkt %1$d von %2$d erreicht. Jetzt geradeaus weitergehen.</string>
+    <string name="messageReachedIntermediatePointTurn">Punkt %1$d von %2$d erreicht. Jetzt nach %3$s abbiegen.</string>
+    <string name="messageReachedDestinationPoint">Punkt %1$d von %2$d erreicht.</string>
+    <string name="messageReachedStation">Haltestelle %s erreicht.</string>
+    <string name="messageDynamicIntersectionDescription">Abzweigungen: %s</string>
+    <string name="messageDynamicIntersectionDescriptionWithTS">Abzweigungen: %1$s. %2$d Ampeln in der Nähe.</string>
+    <string name="messagePointDescInterStart">Startpunkt ist die Kreuzung %s.</string>
+    <string name="messagePointDescInterInter">An der Kreuzung %1$s nach %2$s abbiegen.</string>
+    <string name="messagePointDescInterInterWithStreet">An der Kreuzung %1$s nach %2$s in %3$s abbiegen.</string>
+    <string name="messagePointDescInterInterStraight">Die Kreuzung %s geradeaus überqueren.</string>
+    <string name="messagePointDescInterDestination">Zielpunkt ist die Kreuzung %s.</string>
+    <string name="messagePointDescPOIStart">Startpunkt ist der POI %s.</string>
+    <string name="messagePointDescPOIInter">Nächster Routenpunkt: %s.</string>
+    <string name="messagePointDescPOIDestination">Zielpunkt ist der POI %s.</string>
+    <string name="messagePointDescStationStart">Startpunkt ist die Haltestelle %1$s (%2$s).</string>
+    <string name="messagePointDescStationInter">Nächster Punkt: %1$s (%2$s).</string>
+    <string name="messagePointDescStationDestination">Zielpunkt ist die Haltestelle %1$s (%2$s).</string>
+    <string name="messagePointDescStationNoPos">%s Die exakte Haltestellenposition ist nicht bekannt.</string>
+    <string name="messagePointDescWayPointStart">Startpunkt ist dieser Wegpunkt.</string>
+    <string name="messagePointDescWayPointInterAhead">Geradeaus gehen und dem aktuellen Weg folgen.</string>
+    <string name="messagePointDescWayPointInterTurn">Nach %s abbiegen und dem aktuellen Weg folgen.</string>
+    <string name="messagePointDescWayPointDestination">Zielpunkt ist dieser Wegpunkt.</string>
+    <string name="messageNoFurtherRoutePoint">Kein weiterer Routenpunkt mehr verfügbar</string>
+    <string name="messageFirstRoutePoint">Bereits beim ersten Routenpunkt</string>
+    <string name="messagePreviousPoint">Vorheriges Segment</string>
+    <string name="messageNextPointFootway">Nächstes Segment: %1$d Meter auf %2$s</string>
+    <string name="messageNextPointTransport">Nächstes Segment: Fahrt mit der %1$s, Abfahrt um %2$s.</string>
+    <string name="messageLastRoutePoint">Bereits beim letzten Routenpunkt</string>
+    <string name="messageSegmentDescFootway">%1$d Meter auf %2$s (%3$s)</string>
+    <string name="messageSegmentDescTransport">Fahrt mit der %1$s, Abfahrt um %2$s, Dauer: %3$s, Anzahl Zwischenstops: %4$d.</string>
+    <string name="messageSegmentDescStart">Der Startpunkt der Route ist %d Meter entfernt.</string>
+    <string name="messageDistanceAndBearing">%1$d m auf %2$d Uhr, Kompass: %3$d</string>
+    <string name="messagePointProgress">Punkt %1$d von %2$d</string>
+
+    <!-- Dialog: simulationDialog -->
+    <string name="labelSimulationHeading">Routensimulation</string>
+    <string name="buttonStartSimulation">Simulation starten</string>
+    <string name="buttonPauseSimulation">Simulation anhalten</string>
+    <string name="buttonResumeSimulation">Simulation fortsetzen</string>
+    <string name="buttonStopSimulation">Simulation stoppen</string>
+    <string name="buttonJumpToNextPoint">Springe zum nächsten Routenpunkt</string>
+
+    <!-- Subclass: GPSStatusUpdater -->
+    <string name="messageGPSStatusSignalDisabled">Signal: Deaktiviert</string>
+    <string name="messageGPSStatusSignalNotAvailable">Signal: Nicht verfügbar</string>
+    <string name="messageGPSStatusSignalSimulation">Signal: Simulation</string>
+    <string name="messageGPSStatusSignalProvider">Signal: %s</string>
+    <string name="messageGPSStatusSignalDetails">%1$s, Genauigkeit: %2$.0f Meter, Alter: %3$d Sek., Geschwindigkeit: %4$.1f km/h</string>
+
+    <!-- Class: POIFragment -->
+    <string name="buttonPOIPresetSettings">Optionen</string>
+    <string name="buttonRefresh">Aktualisieren</string>
+    <string name="buttonRefreshClicked">Stoppen</string>
+    <string name="buttonRefreshLongClicked">Auto Aktualisierung aus</string>
+    <string name="messageRefreshMonitorStarted">Automatische Aktualisierung gestartet gestartet</string>
+    <string name="buttonFilterPOIList">Ungefiltert</string>
+    <string name="buttonFilterPOIListClicked">Gefiltert</string>
+    <string name="buttonSmallerRadius">Verkleinern</string>
+    <string name="buttonBiggerRadius">Vergrößern</string>
+    <string name="hintSearchForPOI">Suchen</string>
+    <string name="arrayAARadius">Radius</string>
+    <string name="arrayAASearch">Suche</string>
+    <string-array name="arrayAdditionalOptionsPF">
+        <item>@string/arrayAADisabled</item>
+        <item>@string/arrayAARadius</item>
+        <item>@string/arrayAASearch</item>
+        <item>@string/arrayAAAddress</item>
+        <item>@string/arrayAAGPSStatus</item>
+    </string-array>
+    <string name="labelNoPresetAvailable">Es wurde noch kein POI Preset angelegt</string>
+    <string name="labelFoundNoPOI">Keine POI gefunden</string>
+    <string name="labelPOIPresetComboClosed">%1$s (%2$d Meter)</string>
+    <string name="labelPOIPresetComboOpened">%1$s (Radius: %2$d Meter)</string>
+    <string name="labelRadiusSpinnerObject">%d Meter</string>
+    <string name="messageUseLastKnownLocation">Die aktuelle Position konnte nicht bestimmt werden. Daher wird die letzte bekannte Position verwendet.</string>
+
+    <!-- Class: MiscFragment -->
+    <string name="labelHeadingGPS">GPS und Simulation</string>
+    <string name="labelCurrentSimulation">Simulierte Position: %s</string>
+    <string name="labelCurrentSimulationDisabled">Simulierte Position: Deaktiviert</string>
+    <string name="buttonDisableSimulation">Simulation beenden</string>
+    <string name="buttonSimulateAddress">Adresse simulieren</string>
+    <string name="buttonGPSStatus">GPS Status anzeigen</string>
+    <string name="labelHeadingMisc">Sonstiges</string>
+    <string name="buttonOpenHistory">Letzte Routen und Routenpunkte</string>
+    <string name="buttonAddFavorite">Aktuelle Position sichern</string>
+    <string name="buttonOpenSettings">Einstellungen</string>
+    <string name="buttonOpenHelp">Hilfe</string>
+
+    <!-- Class: HelpActivity -->
+    <string name="title_help_activity">Hilfe</string>
+    <string name="labelHeadingHelp">Über das Programm</string>
+    <string name="labelClientVersion">Programm-Version: %s</string>
+    <string name="labelInterfaceVersion">Serverinterface-Version: %s</string>
+    <string name="labelMapVersionKnown">Kartenmaterial ist vom: %s</string>
+    <string name="labelMapVersionUnknown">Kartenmaterial ist vom: Unbekannt</string>
+
+    <!-- Class: SettingsActivity -->
+    <string name="title_application_settings">Einstellungen</string>
+    <string name="labelSettingsActivityHeading">Einstellungen</string>
+    <string name="labelSettingsActivityRouteSubHeading">Route</string>
+    <string name="labelSettingsActivityRouteFactor">Faktor für Umweg:</string>
+    <string name="messageRouteFactorInvalid">Der ausgewählte Umwegfaktor ist ungültig</string>
+    <string name="buttonShakeNextPoint">Schütteln, um den  nächsten Routenpunkt anzuzeigen:</string>
+    <string name="buttonShakeNextPointNo">Schütteln, um den  nächsten Routenpunkt anzuzeigen: Aus</string>
+    <string name="buttonShakeNextPointYes">Schütteln, um den  nächsten Routenpunkt anzuzeigen: Ein</string>
+    <string name="labelChangeShakeIntensity">Intensität:</string>
+    <string name="labelChangeShakeIntensityValue">Intensität: %.1f</string>
+    <string name="messageChangeShakeIntensity">Gerät schütteln, um die gewünschte Intensität festzulegen</string>
+    <string name="buttonChangeShakeIntensity">Ändern</string>
+    <string name="buttonChangeShakeIntensityClicked">Ändern</string>
+    <string name="labelSettingsActivityServerSubHeading">Server</string>
+    <string name="labelServerURL">Server URL:</string>
+    <string name="hintServerURL">URL des Navigationsservers eingeben</string>
+    <string name="messageServerURLEmpty">Server URL ist leer</string>
+    <string name="labelServerPort">Server Port:</string>
+    <string name="hintServerPort">Port des Navigationsservers eingeben</string>
+    <string name="messageServerPortEmpty">Server Port ist leer</string>
+    <string name="messageServerPortInvalid">Eingegebener Port ist ungültig</string>
+    <string name="buttonStoreToDisk">Einstellungen exportieren</string>
+    <string name="buttonRestoreFromDisk">Einstellungen importieren</string>
+    <string name="messageImExOK">%s: OK\n</string>
+    <string name="messageImExFileNotFoundError">%s: Datei nicht gefunden\n</string>
+    <string name="messageImExJSONError">%s: Datei nicht im Json Format\n</string>
+    <string name="messageImExReadError">%s: Lesefehler\n</string>
+    <string name="messageImExWriteError">%s: Schreibfehler\n</string>
+    <string name="messageImExUnknownError">%s: Unbekannter Fehler\n</string>
+    <string name="messageExportSuccessful">Die Einstellungen wurden erfolgreich in den Ordner %1$s exportiert.\n\n%2$s</string>
+    <string name="messageExportFailed">Eine oder mehrere Dateien konnten nicht in den Ordner %1$s exportiert werden.\n\n%2$s</string>
+    <string name="messageImportSuccessful">Die Einstellungen wurden erfolgreich aus dem Ordner %1$s importiert.\n\n%2$s</string>
+    <string name="messageImportFailed">Eine oder mehrere Dateien konnten nicht aus dem Ordner %1$s importiert werden.\n\n%2$s</string>
+
+    <!-- Class: POIPresetActivity -->
+    <string name="title_poi_presets">POI Preset Verwaltung</string>
+    <string name="labelPOIPresetActivityHeading">POI Presets</string>
+    <string name="buttonNewPreset">Neu</string>
+    <string name="buttonStorePreset">Speichern</string>
+    <string name="buttonDeletePreset">Löschen</string>
+    <string name="labelPOIPresetCategories">Kategorien</string>
+    <string name="messagePOIPresetChangesSavedSuccessfully">Änderungen erfolgreich gespeichert</string>
+    <string name="messageNoPOIPreset">Kein POI Preset angelegt.</string>
+    <string name="messageNoPOICategories">Keine POI Kategorien verfügbar.</string>
+    <string name="messageNoPOICategoryChecked">Keine POI Kategorien ausgewählt.</string>
+    <string name="labelPOICategoryDisabled">POI Updates deaktiviert</string>
+    <string name="labelPOICategoryFavorites">Eigene Favoriten</string>
+    <string name="labelPOICategoryTransport">Bus- und Bahnhaltestellen</string>
+    <string name="labelPOICategoryFood">Essen und Trinken</string>
+    <string name="labelPOICategoryTourism">Tourismus</string>
+    <string name="labelPOICategoryShop">Shopping</string>
+    <string name="labelPOICategoryHealth">Gesundheit</string>
+    <string name="labelPOICategoryEducation">Bildung</string>
+    <string name="labelPOICategoryFinance">Finanzen</string>
+    <string name="labelPOICategoryEntertainment">Unterhaltung</string>
+    <string name="labelPOICategoryPublicService">Öffentliche Einrichtungen</string>
+    <string name="labelPOICategoryNamedIntersection">Kreuzungen mit Namen</string>
+    <string name="labelPOICategoryOtherIntersection">Kreuzungen ohne Namen</string>
+    <string name="labelPOICategoryTrash">Mülleimer</string>
+
+    <!-- Class: EnterPOIPresetNameActivity -->
+    <string name="title_enter_poi_preset_name_activity">Neues POI Preset</string>
+    <string name="labelEnterPOIPresetNameActivityHeading">Neues Preset</string>
+    <string name="labelEnterPresetName">Geben Sie einen Namen für das neue POI Preset ein:</string>
+    <string name="hintPOIPresetName">POI Preset Namen eingeben</string>
+    <string name="messageNoPOIPresetName">Keinen Name für das Preset eingegeben</string>
+
+    <!-- Class: EnterAddressNameActivity -->
+    <string name="title_activity_enter_address">Adresse eingeben</string>
+    <string name="labelEnterAddressActivityHeading">Adresse</string>
+    <string name="labelEnterAddress">Geben Sie eine Adresse ein:</string>
+    <string name="labelEnterStreet">Straße und Hausnummer:</string>
+    <string name="hintEnterStreet">Straße und Hausnummer eingeben</string>
+    <string name="labelEnterCity">Stadt:</string>
+    <string name="hintEnterCity">Stadt eingeben</string>
+
+    <!-- Class: AddFavoriteActivity -->
+    <string name="title_add_favorite">Eigenen Favoriten anlegen</string>
+    <string name="labelAddFavoriteActivityHeading">Favoriten anlegen</string>
+    <string name="labelFavoriteName">Name des Favoriten:</string>
+    <string name="hintEnterFavorite">Geben Sie einen Namen für den Favoriten ein.</string>
+    <string name="labelRoundedAccuracyFormated">Genauigkeit: %d Meter</string>
+    <string name="messageNoFavoriteName">Dem Favoriten fehlt noch ein Name</string>
+    <string name="messageStoredFavoriteLocally">Favoriten erfolgreich gespeichert</string>
+    <string name="messageStoredFavoriteRemotely">Favoriten erfolgreich auf dem Server gespeichert</string>
+
+    <!-- Class: HistoryActivity -->
+    <string name="title_history">Verlauf</string>
+    <string name="labelHistoryActivityRouteHeading">Letzte Routen</string>
+    <string name="labelHistoryActivityRoutePointHeading">Letzte Punkte</string>
+    <string name="labelHistoryActivityFavoritePointHeading">Favoriten</string>
+    <string name="buttonHistoryRoutes">Routen</string>
+    <string name="buttonHistoryRoutePoints">Routenpunkte</string>
+    <string name="buttonHistoryFavoritePoints">Favoriten</string>
+    <string name="labelNoRoutesInHistory">Bisher wurden keine Routen gespeichert</string>
+    <string name="labelNoRoutePointsInHistory">Bisher wurden keine Punkte gespeichert</string>
+    <string name="labelNoFavoritePointsInHistory">Bisher wurden keine Favoriten angelegt</string>
+
+    <!-- Dialog: SourceRouteDetailsDialog -->
+    <string name="labelSourceRouteDetailsDialogHeading">Routen-Details</string>
+    <string name="labelSourceRouteDescription">Von %1$s nach %2$s</string>
+    <string name="labelSourceRouteDescriptionNumInterPoints"> (%d Zwischenziele)</string>
+    <string name="labelDetailsSourceRouteDescription">Details der Route von %1$s nach %2$s</string>
+
+    <!-- Dialog: SourceRouteActionMenuDialog -->
+    <string name="labelActionsSourceRouteDescription">Mögliche Aktionen für die Route von %1$s nach %2$s</string>
+    <string name="buttonSelectRoute">Route auswählen</string>
+    <string name="buttonRouteDetails">Details anzeigen</string>
+    <string name="buttonRemoveFromHistory">Aus dem Verlauf entfernen</string>
+    <string name="buttonRemoveAllFromHistory">Kompletten Verlauf löschen</string>
+    <string name="buttonRemoveAllFromFavorites">Alle angelegten Favoriten löschen</string>
+
+    <!-- Dialog: RoutePointActionMenuDialog -->
+    <string name="labelActionsRoutePointDescription">Mögliche Aktionen für %s</string>
+    <string name="buttonPointSimulation">Punkt simulieren</string>
+    <string name="messagePositionSimulated">Position simuliert</string>
+    <string name="messageSimulationStopped">Simulation beendet</string>
+    <string name="buttonToFavorites">Zu Favoritenliste hinzufügen</string>
+    <string name="buttonToFavoritesClicked">Aus Favoritenliste entfernen</string>
+    <string name="messageAddedToFavorites">Zu Favoritenliste hinzugefügt</string>
+    <string name="messageRemovedFromFavorites">Aus Favoritenliste entfernt</string>
+    <string name="labelAsNewRouteObject">Als neues Routenobject:</string>
+    <string name="buttonAsNewStartPoint">Als Startpunkt</string>
+    <string name="buttonAsNewSingleIntermediatePoint">Als Zwischenziel</string>
+    <string name="buttonAsNewMultiIntermediatePoint">Als %d Zwischenziel</string>
+    <string name="buttonAsNewDestinationPoint">Als Zielpunkt</string>
+
+    <!-- Dialog: CleanHistoryDialog -->
+    <string name="cleanHistoryDialogTitle">Verlauf löschen</string>
+    <string name="cleanRouteHistoryMessage">Sollen alle gespeicherten Routen wirklich gelöscht werden?</string>
+    <string name="cleanPointHistoryMessage">Sollen alle gespeicherten Punkte wirklich gelöscht werden?</string>
+    <string name="cleanFavoriteListMessage">Sollen alle gespeicherten Favoriten wirklich gelöscht werden?</string>
+
+    <!-- Class: TransportRouteChooserActivity -->
+    <string name="title_transport_route_chooser_activity">ÖPNV-Verbindungen</string>
+    <string name="labelNoTransportRoutes">Keine Routen gefunden.</string>
+    <string name="messageEmptyRoutePoint">Der ausgewählte Punkt ist leer</string>
+
+    <!-- Class: DialogActivity -->
+    <string name="title_dialog_activity">Benachrichtigung</string>
+
+    <!-- Class: RouteObjectDetailsActivity -->
+    <string name="title_route_object_details">Routenobjekt-Details</string>
+    <string name="buttonActionMenu">Aktionen</string>
+    <string name="labelObjectName">Name: %s</string>
+    <string name="labelObjectType">Typ: %s</string>
+    <string name="labelIntersectionObjectType">Typ: Kreuzung (%s)</string>
+    <string name="labelObjectDistanceAndBearingUnknown">Entfernung: Unbekannt</string>
+    <string name="labelObjectDistanceAndBearing">Entfernung: %1$d m auf %2$d Uhr</string>
+    <string name="labelPreferencesHeading">Eigenschaften</string>
+    <string name="labelTrafficSignals">Ampeln: Ja (%d in der Nähe)</string>
+    <string name="labelNoTrafficSignals">Ampeln: Nein</string>
+    <string name="labelNumberOfIntersectionWays">Kreuzung mit %d Straßen</string>
+    <string name="labelWithinBuildingYes">Innerhalb von Gebäude: Ja</string>
+    <string name="labelWithinBuildingNo">Innerhalb von Gebäude: Nein</string>
+    <string name="labelWithinBuildingName">Innerhalb von Gebäude: %s</string>
+    <string name="labelNoEntranceChoosen">Kein Eingang ausgewählt</string>
+    <string name="labelBuildingEntrance">Eingang</string>
+    <string name="labelBuildingEntrances">Eingänge: </string>
+    <string name="labelEntranceDropDown">%1$s: %2$d Meter auf %3$d Uhr</string>
+    <string name="labelPOIAddress">Adresse: %s</string>
+    <string name="labelPOIOpeningHours">Öffnungszeiten: %s</string>
+    <string name="labelPOIPhone">Telefon: %s</string>
+    <string name="labelPOIEmail">E-Mail: %s</string>
+    <string name="labelPOIWebsite">Webseite: %s</string>
+    <string name="labelAvailableTransportLines">Verkehrsmittel an dieser Station:</string>
+    <string name="labelNextDepartures">Nächste Abfahrten:</string>
+    <string name="labelFootwayLength">Länge: %d Meter</string>
+    <string name="labelFootwayBearing">Richtung: %s</string>
+    <string name="labelFootwaySurface">Oberfläche: %s</string>
+    <string name="labelObjectTypeTram">Typ: Straßenbahn</string>
+    <string name="labelObjectTypeBus">Typ: Bus</string>
+    <string name="labelObjectTypeSubway">Typ: U-Bahn</string>
+    <string name="labelObjectTypeLightrail">Typ: S-Bahn</string>
+    <string name="labelObjectTypeRTrain">Typ: Regionalbahn</string>
+    <string name="labelObjectTypeITrain">Typ: Intercity</string>
+    <string name="labelObjectTypeFerry">Typ: Fähre</string>
+    <string name="labelObjectTypeUnknown">Typ: Unbekannt</string>
+    <string name="labelTransportDeparture">Abfahrt: %s</string>
+    <string name="labelTransportArrival">Ankunft: %s</string>
+    <string name="labelTransportDuration">Dauer: %s</string>
+    <string name="labelTransportNumInterStops">Zwischenstops: %d</string>
+    <string name="labelTransportInterStop">%1$d. %2$s</string>
+    <string name="labelTransportNoInterStops">Keine Zwischenstops</string>
+    <string name="labelObjectTypeUnsupported">Typ: Nicht unterstützt</string>
+    <string name="labelInterWayDetails">%1$d. %2$s: %3$s</string>
+    <string name="labelInterWayDetailsNextWay">(*) %1$d. %2$s: %3$s</string>
+    <string name="labelTrafficSignalDistanceAndBearing">%1$d m auf %2$d Uhr: %3$s</string>
+    <string name="labelDepartureTableRow">%1$s\t%2$s\t%3$s\t%4$s</string>
+    <string name="messageInterWayNameNextPoint">%s, nächster Routenpunkt</string>
+
+    <!-- Dialog: IntersectionWayDialog -->
+    <string name="labelInterWayDialogHeading">Name: %1$s (%2$s)</string>
+    <string name="buttonInterWayRoute">Route berechnen</string>
+    <string name="buttonInterWayRouteAll">Route mit allen Kreuzungen berechnen</string>
+
+    <!-- Class: GPSStatusActivity -->
+    <string name="title_gps_status_activity">GPS Status</string>
+    <string name="labelLatitude">Breitengrad:</string>
+    <string name="labelLatitudeFormated">Breitengrad: %f</string>
+    <string name="labelLongitude">Längengrad:</string>
+    <string name="labelLongitudeFormated">Längengrad: %f</string>
+    <string name="labelProvider">Provider:</string>
+    <string name="labelSatellites">Satelliten:</string>
+    <string name="labelAccuracy">Genauigkeit:</string>
+    <string name="labelAccuracyFormated">Genauigkeit: %.0f Meter</string>
+    <string name="labelAltitude">Höhe:</string>
+    <string name="labelAltitudeFormated">Höhe: %.0f Meter</string>
+    <string name="labelSpeed">Geschwindigkeit:</string>
+    <string name="labelSpeedFormated">Geschwindigkeit: %.1f km/h</string>
+    <string name="labelBearing">Richtung:</string>
+    <string name="labelBearingFormated">Richtung: %.0f°</string>
+    <string name="labelCompass">Kompass:</string>
+    <string name="labelCompassFormated">Kompass: %d°</string>
+    <string name="labelTime">Zeit:</string>
+    <string name="labelTimeFormated">Zeit: %1$s %2$s</string>
+    <string name="buttonStartLogging">Logging starten</string>
+    <string name="buttonStopLogging">Logging stoppen</string>
+
+    <!-- utility classes -->
+
+    <!-- Class: AddressManager -->
+    <string name="messageAddressDownloadError">Adress-Downloadfehler, Status: %s</string>
+    <string name="messageNoAddressForThisCoordinates">Keine Adresse für diese Koordinaten gefunden.</string>
+
+    <!-- Class: CompassCalibrationValidator -->
+    <string name="messageCalibrateCompass">Der Kompass arbeitet nicht korrekt und muss kalibriert
+        werden. Dazu drehen Sie das Smartphone einmal um jede Achse.\n\n1.: Das Telefon liegt auf
+        einer flachen Unterlage vor Ihnen und wird einmal komplett im Uhrzeigersinn gedreht.\n2.:
+        Das Gerät wird um dessen horizontale Achse gedreht.\n3.: Das Smartphone wird schließlich um
+        dessen vertikale Achse gedreht.\n\nDanach arbeitet der Kompass wieder störungsfrei.</string>
+
+    <!-- Class: DataDownloader -->
+    <string name="messageNoNetworkAvailable">Keine Netzwerkverbindung verfügbar</string>
+    <string name="messageTransmissionError">Übertragungsfehler: %s</string>
+    <string name="messageReadContentsError">Lesefehler: %s</string>
+    <string name="messageJSONParseError">JSON-Parsing-Fehler: %s</string>
+
+    <!-- Class: ObjectParser -->
+    <string name="messageRouteObjectParsingError">Route nicht valide: Beim Parsen eines der Routenobjecte trat ein Fehler auf.</string>
+    <string name="messageUnsupportedRouteObject">Route nicht valide: Der Typ eines der Routenobjekte ist unbekannt und somit nicht verarbeitbar.</string>
+    <string name="messageInvalidRouteTwoPoints">Route nicht valide: Die Route beinhaltet zwei aufeinander folgende Routenpunkte.</string>
+    <string name="messageInvalidRouteTwoSegments">Route nicht valide: Die Route beinhaltet zwei aufeinander folgende Routensegmente.</string>
+    <string name="messageInvalidRouteNoDestination">Route nicht valide: Der Zielpunkt der route fehlt.</string>
+    <string name="messageInvalidRouteEmpty">Route nicht valide: Die Route ist leer.</string>
+
+    <!-- Class: PositionManager -->
+    <string name="messagePosSimulationFailedNoLocation">Die Positionssimulation konnte nicht gestartet werden: Keine gültige Position übergeben.</string>
+    <string name="messageGotNoLocationAtAll">Das Programm konnte keine Positionsbestimmung vornehmen. Bitte starten Sie die Anwendung und gegebenenfalls auch Ihr Smartphone neu</string>
+
+    <!-- standard messages, which are used in more than one component -->
+    <string name="dialogYes">Ja</string>
+    <string name="dialogNo">Nein</string>
+    <string name="dialogApply">Übernehmen</string>
+    <string name="dialogCancel">Abbrechen</string>
+    <string name="dialogDelete">Löschen</string>
+    <string name="dialogOK">OK</string>
+    <string name="messageUnknownError">Der Server ist auf Grund eines unbekannten Fehlers nicht erreichbar.</string>
+    <string name="messageErrorFromServer">Fehler: %s</string>
+    <string name="messageJSONError">Fehler bei der Verarbeitung der Serverdaten: %s</string>
+    <string name="messageNetworkError">Der Server ist auf Grund eines Netzwerkfehlers nicht erreichbar.\n\n%s</string>
+
+    <!-- direction values -->
+    <string name="directionStraightforward">Geradeaus</string>
+    <string name="directionTurnRightSlightly">Leicht rechts</string>
+    <string name="directionTurnRight">Rechts</string>
+    <string name="directionTurnRightStrongly">Scharf rechts</string>
+    <string name="directionBehindYou">Hinter Ihnen</string>
+    <string name="directionTurnLeftStrongly">Scharf links</string>
+    <string name="directionTurnLeft">Links</string>
+    <string name="directionTurnLeftSlightly">Leicht links</string>
+    <string name="directionNorth">Norden</string>
+    <string name="directionNorthEast">Nordosten</string>
+    <string name="directionEast">Osten</string>
+    <string name="directionSouthEast">Südosten</string>
+    <string name="directionSouth">Süden</string>
+    <string name="directionSouthWest">Südwesten</string>
+    <string name="directionWest">Westen</string>
+    <string name="directionNorthWest">Nordwesten</string>
+
+    <!-- RouteObject values -->
+    <string name="roPointTactileNo">Taktile Leitlinie: Nein</string>
+    <string name="roPointTactileYes">Taktile Leitlinie: Ja</string>
+    <string name="roPointWheelchairNo">Rollstuhlgeeignet: Nein</string>
+    <string name="roPointWheelchairPartly">Rollstuhlgeeignet: Teilweise</string>
+    <string name="roPointWheelchairYes">Rollstuhlgeeignet: Ja</string>
+    <string name="roPointTurn">, Richtung: %s</string>
+    <string name="roPointDistance">, in %d Metern</string>
+    <string name="roPointDistanceAndBearing">, in %1$d Metern auf %2$d Uhr</string>
+    <string name="roIntersection">%1$s (Kreuzung mit  %2$d Straßen)</string>
+    <string name="roStationPlatformNumber">, Gleis: %s</string>
+    <string name="roStationLines">, Linien: %s</string>
+    <string name="roStationLineDirection"> nach %s</string>
+    <string name="roStationExactStopPosition">, genaue Haltestellenposition bekannt</string>
+    <string name="roWayDistance">, Länge: %d Meter</string>
+    <string name="roWaySurface">, Oberfläche: %s</string>
+    <string name="roWaySidewalkNo">Kein Fußweg</string>
+    <string name="roWaySidewalkLeft">Fußweg links</string>
+    <string name="roWaySidewalkRight">Fußweg rechts</string>
+    <string name="roWaySidewalkBoth">Fußweg beidseitig</string>
+    <string name="roTransportDescription">%1$s nach %2$s, Abfahrt: %3$s</string>
+    <string name="roTransportIntermediateStops">, %d Zwischenstops</string>
+
+    <!-- location status values -->
+    <string name="locationProviderGPS">GPS</string>
+    <string name="locationProviderNetwork">Netzwerk</string>
+    <string name="locationNameSimulation">Simulation</string>
+    <string name="locationNameSimulationWithDescription">Simulation: %s</string>
+    <string name="locationNameCurrentPosition">Aktuelle Position</string>
+    <string name="locationNameCurrentPositionWithAccuracy">Aktuelle Position (%d Meter genau)</string>
+    <string name="locationNameAddress">Adresse</string>
+    <string name="locationNameAddressWithAccuracy">%1$s (%2$d Meter genau)</string>
+
+</resources>

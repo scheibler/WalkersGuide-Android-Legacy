@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/linearLayoutMain" >
+
+    <LinearLayout
+        android:id="@+id/linearLayoutTop"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:orientation="horizontal" >
+
+        <Button
+            android:id="@+id/buttonCancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/dialogCancel" />
+
+        <TextView
+            android:id="@+id/labelHeading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/labelSettingsActivityHeading" 
+            android:textSize="18sp" />
+
+        <Button
+            android:id="@+id/buttonOK"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/dialogApply" />
+    </LinearLayout>
+
+    <ScrollView
+        android:id="@+id/scrollViewContents"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginBottom="15dip"
+        android:layout_below="@id/linearLayoutTop"
+        android:layout_weight="1" >
+
+        <LinearLayout
+            android:id="@+id/linearLayoutContents"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical" >
+
+            <!-- route settings -->
+            <TextView
+                android:id="@+id/labelSubHeading1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dip"
+                android:text="@string/labelSettingsActivityRouteSubHeading" 
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/labelRouteFactor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dip"
+                android:text="@string/labelSettingsActivityRouteFactor"  />
+
+            <Spinner
+                android:id="@+id/spinnerRouteFactor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/buttonShakeNextPoint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dip"
+                android:text="@string/buttonShakeNextPoint"  />
+
+            <LinearLayout
+                android:id="@+id/linearLayoutShakeIntensity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" >
+
+                <TextView
+                    android:id="@+id/labelChangeShakeIntensity"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1.0"
+                    android:text="@string/labelChangeShakeIntensity"  />
+
+                <Button
+                    android:id="@+id/buttonChangeShakeIntensity"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1.0"
+                    android:text="@string/buttonChangeShakeIntensity"  />
+            </LinearLayout>
+
+            <!-- server settings -->
+            <TextView
+                android:id="@+id/labelSubHeading2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dip"
+                android:text="@string/labelSettingsActivityServerSubHeading" 
+                android:textSize="18sp" />
+
+            <!-- server url -->
+            <TextView
+                android:id="@+id/labelServerURL"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/labelServerURL" />
+
+            <LinearLayout
+                android:id="@+id/linearLayoutServerURL"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" >
+
+                <EditText
+                    android:id="@+id/editServerURL"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentLeft="true"
+                    android:layout_weight="1"
+                    android:hint="@string/hintServerURL"
+                    android:inputType="text" />
+
+                <Button
+                    android:id="@+id/buttonDeleteServerURL"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/dialogDelete" />
+            </LinearLayout>
+
+            <!-- server port -->
+            <TextView
+                android:id="@+id/labelServerPort"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/labelServerPort" />
+
+            <LinearLayout
+                android:id="@+id/linearLayoutServerPort"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" >
+
+                <EditText
+                    android:id="@+id/editServerPort"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentLeft="true"
+                    android:layout_weight="1"
+                    android:hint="@string/hintServerPort"
+                    android:inputType="number" />
+
+                <Button
+                    android:id="@+id/buttonDeleteServerPort"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/dialogDelete" />
+            </LinearLayout>
+
+            <!-- store and restore settings -->
+            <Button
+                android:id="@+id/buttonRestoreFromDisk"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/buttonRestoreFromDisk" />
+
+            <Button
+                android:id="@+id/buttonStoreToDisk"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dip"
+                android:text="@string/buttonStoreToDisk" />
+
+        </LinearLayout>
+    </ScrollView>
+</RelativeLayout>

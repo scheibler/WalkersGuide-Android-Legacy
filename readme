@@ -1,0 +1,17 @@
+WalkersGuide-Android
+===================
+
+WalkersGuide is a navigation aid based on OpenStreetMap data. It's designed especially but not
+exclusively for visual impaired people. It's main purpose is to calculate routes for walkers
+including public transportation. More about this project at http://walkersguide.org.
+
+The project consists of two parts:
+1. The server holds the OpenStreetMap data and calculates routes based on given start and
+destination. It also provides an interface to query nearby points of interest.
+2. The client sends start and destination points to the server. After calculation the received route
+is presented to the user.
+
+This repository holds the client application. It's written in Java and supports the Android
+operating system since version 4.0. The application is fully accessible with Android's screen reader
+Talkback.
+

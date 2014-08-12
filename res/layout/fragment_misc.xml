@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/linearLayoutMain" >
+
+    <ScrollView
+        android:id="@+id/scrollViewContents"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" >
+
+        <LinearLayout
+            android:id="@+id/linearLayoutContents"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical" >
+
+            <TextView
+                android:id="@+id/labelHeadingGPS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="true"
+                android:text="@string/labelHeadingGPS"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/labelCurrentSimulation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="true"
+                android:text="" />
+
+            <Button
+                android:id="@+id/buttonDisableSimulation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/buttonDisableSimulation" />
+
+            <Button
+                android:id="@+id/buttonSimulateAddress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/buttonSimulateAddress" />
+
+            <Button
+                android:id="@+id/buttonGPSStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dip"
+                android:text="@string/buttonGPSStatus" />
+
+            <TextView
+                android:id="@+id/labelHeadingMisc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="true"
+                android:text="@string/labelHeadingMisc"
+                android:textSize="18sp" />
+
+            <Button
+                android:id="@+id/buttonOpenHistory"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/buttonOpenHistory" />
+
+            <Button
+                android:id="@+id/buttonAddFavorite"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/buttonAddFavorite" />
+
+            <Button
+                android:id="@+id/buttonOpenSettings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/buttonOpenSettings" />
+
+            <Button
+                android:id="@+id/buttonOpenHelp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/buttonOpenHelp" />
+
+        </LinearLayout>
+    </ScrollView>
+</RelativeLayout>
