@@ -81,7 +81,7 @@ public class TransportSegment {
     public String toString() {
         String s = String.format(
                 Globals.getContext().getResources().getString(R.string.roTransportDescription),
-                this.line, this.to, this.departure_time);
+                this.line, this.to, this.departure_time, this.arrival_time);
         if (this.stops.size() > 0) {
             s += String.format(
                     Globals.getContext().getResources().getString(R.string.roTransportIntermediateStops),

@@ -5,13 +5,10 @@ import java.util.Collections;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.walkersguide.R;
 import org.walkersguide.routeobjects.FootwaySegment;
-import org.walkersguide.routeobjects.IntersectionPoint;
-import org.walkersguide.routeobjects.POIPoint;
 import org.walkersguide.routeobjects.Point;
 import org.walkersguide.routeobjects.RouteObjectWrapper;
-import org.walkersguide.routeobjects.StationPoint;
-import org.walkersguide.routeobjects.TransportSegment;
 
 
 public class Route {
@@ -22,6 +19,35 @@ public class Route {
     private int segmentIndex;
     private int direction;
     private String routeDescription;
+    private int cost;
+
+    public Route() {
+        // create an empty source route
+        this.routeList = new ArrayList<RouteObjectWrapper>();
+        this.routeList.add(new RouteObjectWrapper());
+        this.routeList.add(new RouteObjectWrapper(
+                new FootwaySegment(
+                    Globals.getContext().getResources().getString(R.string.labelFootwayPlaceholder),
+                    -1, -1, "footway_place_holder")));
+        this.routeList.add(new RouteObjectWrapper());
+        // some other variables
+        this.routeDescription = "";
+        subPointList = new ArrayList<Point>();
+        this.pointIndex = 0;
+        this.segmentIndex = -1;
+        this.direction = 1;
+        this.cost = 0;
+    }
+
+    public Route(ArrayList<RouteObjectWrapper> list) {
+        this.routeList = list;
+        this.routeDescription = "";
+        subPointList = new ArrayList<Point>();
+        this.pointIndex = 0;
+        this.segmentIndex = -1;
+        this.direction = 1;
+        this.cost = 0;
+    }
 
     public Route(ArrayList<RouteObjectWrapper> list, String description) {
         this.routeList= list;
@@ -30,6 +56,17 @@ public class Route {
         this.segmentIndex = -1;
         this.direction = 1;
         this.routeDescription = description;
+        this.cost = 0;
+    }
+
+    public Route(ArrayList<RouteObjectWrapper> list, String description, int cost) {
+        this.routeList= list;
+        subPointList = new ArrayList<Point>();
+        this.pointIndex = 0;
+        this.segmentIndex = -1;
+        this.direction = 1;
+        this.routeDescription = description;
+        this.cost = cost;
     }
 
     public ArrayList<RouteObjectWrapper> getRouteList() {
@@ -120,32 +157,78 @@ public class Route {
         return new RouteObjectWrapper();
     }
 
-    public void addWayPoint(Point p) {
-        this.routeList.add(new RouteObjectWrapper(p));
+    public void addRouteObjectAtIndex(int index, RouteObjectWrapper object) {
+        this.routeList.add(index, object);
     }
 
-    public void addIntersection(IntersectionPoint p) {
-        this.routeList.add(new RouteObjectWrapper(p));
+    public void replaceRouteObjectAtIndex(int index, RouteObjectWrapper object) {
+        if ((index >= 0) && (index < routeList.size()))
+            this.routeList.set(index, object);
     }
 
-    public void addPOI(POIPoint p) {
-        this.routeList.add(new RouteObjectWrapper(p));
+    public void removeRouteObjectAtIndex(int index) {
+        if ((index >= 0) && (index < routeList.size()))
+            this.routeList.remove(index);
     }
 
-    public void addStation(StationPoint p) {
-        this.routeList.add(new RouteObjectWrapper(p));
+    public int getSize() {
+        return this.routeList.size();
     }
 
-    public void addFootwaySegment(FootwaySegment s) {
-        this.routeList.add(new RouteObjectWrapper(s));
+    public int getCost() {
+        return this.cost;
     }
 
-    public void addTransportSegment(TransportSegment s) {
-        this.routeList.add(new RouteObjectWrapper(s));
+    public String getRouteDescription() {
+        if (this.routeDescription.equals("")) {
+            String description = String.format(
+                    Globals.getContext().getResources().getString(R.string.labelSourceRouteDescription),
+                    this.routeList.get(0).getPoint().getName(),
+                    this.routeList.get(this.routeList.size()-1).getPoint().getName() );
+            if (this.routeList.size() > 3) {
+                description += String.format(
+                        Globals.getContext().getResources().getString(R.string.labelSourceRouteDescriptionNumInterPoints),
+                        ((this.routeList.size()-3)/2) );
+            }
+            // calculate length of route
+            int distance = 0;
+            for (int i=0; i<this.routeList.size()-2; i=i+2) {
+                distance += this.routeList.get(i).getPoint().distanceTo(this.routeList.get(i+2).getPoint());
+            }
+            description += String.format(
+                    Globals.getContext().getResources().getString(R.string.labelSourceRouteDescriptionBeeLine),
+                    distance);
+            return description;
+        }
+        return this.routeDescription;
+    }
+
+    public String getReverseRouteDescription() {
+        if (this.routeDescription.equals("")) {
+            String description = String.format(
+                    Globals.getContext().getResources().getString(R.string.labelSourceRouteDescription),
+                    this.routeList.get(this.routeList.size()-1).getPoint().getName(),
+                    this.routeList.get(0).getPoint().getName() );
+            if (this.routeList.size() > 3) {
+                description += String.format(
+                        Globals.getContext().getResources().getString(R.string.labelSourceRouteDescriptionNumInterPoints),
+                        ((this.routeList.size()-3)/2) );
+            }
+            // calculate length of route
+            int distance = 0;
+            for (int i=0; i<this.routeList.size()-2; i=i+2) {
+                distance += this.routeList.get(i).getPoint().distanceTo(this.routeList.get(i+2).getPoint());
+            }
+            description += String.format(
+                    Globals.getContext().getResources().getString(R.string.labelSourceRouteDescriptionBeeLine),
+                    distance);
+            return description;
+        }
+        return this.routeDescription;
     }
 
     public String toString() {
-        return routeDescription;
+        return getRouteDescription();
     }
 
     public JSONArray toJson() {
@@ -163,10 +246,7 @@ public class Route {
 
 	@Override public int hashCode() {
 		final int prime = 31;
-		int result = 1;
-		result = prime * result
-				+ ((routeList == null) ? 0 : routeList.hashCode());
-		return result;
+        return prime + this.getRouteDescription().hashCode() + this.getReverseRouteDescription().hashCode();
 	}
 
 	@Override public boolean equals(Object obj) {
@@ -177,15 +257,11 @@ public class Route {
 		if (!(obj instanceof Route))
 			return false;
 		Route other = (Route) obj;
-		if (routeList == null) {
-			if (other.getRouteList() != null)
-				return false;
-		} else if (routeList.size() != other.getRouteList().size()) {
-            return false;
-		} else if (!routeList.equals(other.getRouteList())) {
-			return false;
+        if (this.getRouteDescription().equals(other.getRouteDescription())
+                || this.getRouteDescription().equals(other.getReverseRouteDescription())) {
+            return true;
         }
-		return true;
-	}
+        return false;
+    }
 
 }

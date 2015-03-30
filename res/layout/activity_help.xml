@@ -21,28 +21,47 @@
                 android:layout_height="wrap_content"
                 android:focusable="true"
                 android:text="@string/labelHeadingHelp"
-                android:textSize="18sp" />
+                android:textSize="22sp" />
 
             <TextView
                 android:id="@+id/labelClientVersion"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:focusable="true"
-                android:text="" />
+                android:text=""
+                android:textSize="18sp" />
 
             <TextView
                 android:id="@+id/labelInterfaceVersion"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:focusable="true"
-                android:text="" />
+                android:text=""
+                android:textSize="18sp" />
 
             <TextView
                 android:id="@+id/labelMapVersion"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:focusable="true"
-                android:text="" />
+                android:text=""
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/labelEMailAddress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="true"
+                android:text=""
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/labelWebsite"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="true"
+                android:text=""
+                android:textSize="18sp" />
 
         </LinearLayout>
     </ScrollView>

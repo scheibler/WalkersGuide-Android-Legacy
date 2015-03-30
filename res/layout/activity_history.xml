@@ -39,6 +39,29 @@
             android:text="@string/buttonHistoryFavoritePoints" />
     </RadioGroup>
 
+    <LinearLayout
+        android:id="@+id/linearLayout1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal" >
+
+        <EditText
+            android:id="@+id/editSearch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_weight="1"
+            android:hint="@string/hintEnterHistorySearch"
+            android:inputType="text"
+            android:imeOptions="actionDone" />
+
+        <Button
+            android:id="@+id/buttonDeleteSearch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/dialogDelete" />
+    </LinearLayout>
+
     <ListView
         android:id="@+id/listHistory"
         android:layout_width="match_parent"

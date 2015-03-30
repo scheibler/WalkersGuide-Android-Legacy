@@ -30,13 +30,10 @@ public class AddressManager {
     }
 
     public void updateAddress(Point location) {
-        if (downloadInProcess) {
+        if (location == null || downloadInProcess) {
             return;
         }
-        if (location == null) {
-            return;
-        }
-        if (currentLocation == null || currentLocation.distanceTo(location) > 20) {
+        if (currentLocation == null || currentLocation.distanceTo(location) > 30) {
             currentLocation = location;
             currentAddress = "";
             String params = "/maps/api/geocode/json?"

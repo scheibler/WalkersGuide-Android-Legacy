@@ -1,6 +1,8 @@
 package org.walkersguide.utils;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -67,10 +69,10 @@ public class ObjectParser {
      * This function is called when a set of public transport routes was recived
      * It filters possible transmission errors
      * Input is a JSON object from server
-     * Returns a list of Route objects or a routeParsingexception in case of failure
+     * Returns a list of TransportConnection objects or a routeParsingexception in case of failure
      */
-    public static ArrayList<Route> parseMultipleRoutes(JSONObject jsonObject) throws RouteParsingException {
-        ArrayList<Route> routeList = new ArrayList<Route>();
+    public static ArrayList<TransportConnection> parseMultipleRoutes(JSONObject jsonObject) throws RouteParsingException {
+        ArrayList<TransportConnection> connectionList = new ArrayList<TransportConnection>();
         CharSequence  text = "";
         try {
             if (jsonObject == null) {
@@ -80,15 +82,21 @@ public class ObjectParser {
                         Globals.getContext().getResources().getString(R.string.messageErrorFromServer),
                         jsonObject.getString("error") );
             } else {
-                JSONArray jsonRouteList = jsonObject.getJSONArray("transport_routes");
-                for (int i=0; i<jsonRouteList.length(); i++) {
-                    JSONObject jsonRoute = jsonRouteList.getJSONObject(i);
-                    // get data from that transport route
-                    routeList.add(
+                JSONObject jsonConnectionList = jsonObject.getJSONObject("transport_routes");
+                for(Iterator<String> iter = jsonConnectionList.keys(); iter.hasNext();) {
+                    TransportConnection connection = new TransportConnection(iter.next());
+                    JSONArray jsonConnection = jsonConnectionList.getJSONArray(connection.getVehicles());
+                    for (int i=0; i<jsonConnection.length(); i++) {
+                        JSONObject jsonRoute = jsonConnection.getJSONObject(i);
+                        connection.addRoute(
                             new Route(
                                 parseRouteArray( jsonRoute.getJSONArray("route")),
-                                jsonRoute.getString("description")
+                                jsonRoute.getString("description"),
+                                jsonRoute.getInt("cost")
                             ));
+                    }
+                    if (connection.getNumberOfRoutes() > 0)
+                        connectionList.add(connection);
                 }
             }
         } catch (JSONException e) {
@@ -101,7 +109,8 @@ public class ObjectParser {
         if (!text.equals("")) {
             throw new RouteParsingException(String.valueOf(text));
         }
-        return routeList;
+        Collections.sort(connectionList);
+        return connectionList;
     }
 
     /**
@@ -218,7 +227,7 @@ public class ObjectParser {
                         Globals.getContext().getResources().getString(R.string.messageErrorFromServer),
                         jsonPoints.getString("error") );
             } else {
-                JSONArray poi = jsonPoints.getJSONArray("pois");
+                JSONArray poi = jsonPoints.getJSONArray("poi");
                 poiList = parsePointArray(poi);
             }
         } catch (JSONException e) {
@@ -424,14 +433,13 @@ public class ObjectParser {
      * Returns a StationPoint object or null in case of failure
      */
     public static StationPoint parseStation(JSONObject p) {
-        StationPoint station = new StationPoint("", 0.0, 0.0, "", false);
+        StationPoint station = new StationPoint("", 0.0, 0.0, "");
         try {
             station = new StationPoint(
                     p.getString("name"),
                     p.getDouble("lat"),
                     p.getDouble("lon"),
-                    p.getString("sub_type"),
-                    false );
+                    p.getString("sub_type") );
         } catch (JSONException e) {
             return null;
         }
@@ -607,6 +615,9 @@ public class ObjectParser {
                     continue;
                 }
             }
+        } catch (JSONException e) {}
+        try {
+            footway.addWayClass(s.getInt("way_class"));
         } catch (JSONException e) {}
         try {
             footway.addWayId(s.getInt("way_id"));

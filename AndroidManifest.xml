@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.walkersguide"
-    android:versionCode="1"
-    android:versionName="0.1" >
+    android:versionCode="5"
+    android:versionName="0.3.0" >
 
     <uses-sdk
         android:minSdkVersion="14"
@@ -33,60 +33,59 @@
             android:name="org.walkersguide.userinterface.EnterAddressActivity"
             android:label="@string/title_activity_enter_address"
             android:theme="@android:style/Theme.NoTitleBar"
-            android:windowSoftInputMode="stateVisible" >
-        </activity>
+            android:windowSoftInputMode="stateVisible" />
         <activity
             android:name="org.walkersguide.userinterface.EnterPOIPresetNameActivity"
             android:label="@string/title_enter_poi_preset_name_activity"
             android:theme="@android:style/Theme.NoTitleBar"
-            android:windowSoftInputMode="stateVisible" >
-        </activity>
+            android:windowSoftInputMode="stateVisible" />
         <activity
             android:name="org.walkersguide.userinterface.POIPresetsActivity"
-            android:label="@string/title_poi_presets" >
-            android:theme="@android:style/Theme.NoTitleBar"
-        </activity>
+            android:label="@string/title_poi_presets"
+            android:theme="@android:style/Theme.NoTitleBar" />
         <activity
             android:name="org.walkersguide.userinterface.AddFavoriteActivity"
             android:label="@string/title_add_favorite"
             android:theme="@android:style/Theme.NoTitleBar"
-            android:windowSoftInputMode="stateVisible" >
-        </activity>
+            android:windowSoftInputMode="stateVisible" />
         <activity
             android:name="org.walkersguide.userinterface.RouteObjectDetailsActivity"
             android:label="@string/title_route_object_details"
-            android:theme="@android:style/Theme.NoTitleBar" >
-        </activity>
+            android:theme="@android:style/Theme.NoTitleBar" />
         <activity
             android:name="org.walkersguide.userinterface.HistoryActivity"
             android:label="@string/title_history"
-            android:theme="@android:style/Theme.NoTitleBar" >
-        </activity>
+            android:theme="@android:style/Theme.NoTitleBar"
+            android:windowSoftInputMode="stateHidden" />
         <activity
             android:name="org.walkersguide.userinterface.SettingsActivity"
             android:label="@string/title_application_settings"
             android:theme="@android:style/Theme.NoTitleBar"
-            android:windowSoftInputMode="stateHidden" >
-        </activity>
+            android:windowSoftInputMode="stateHidden" />
         <activity
             android:name="org.walkersguide.userinterface.TransportRouteChooserActivity"
             android:label="@string/title_transport_route_chooser_activity"
-            android:theme="@android:style/Theme.NoTitleBar" >
-        </activity>
+            android:theme="@android:style/Theme.NoTitleBar" />
         <activity
             android:name="org.walkersguide.userinterface.GPSStatusActivity"
             android:label="@string/title_gps_status_activity"
-            android:theme="@android:style/Theme.NoTitleBar" >
-        </activity>
+            android:theme="@android:style/Theme.NoTitleBar" />
         <activity
             android:name="org.walkersguide.userinterface.DialogActivity"
             android:label="@string/title_dialog_activity"
-            android:theme="@android:style/Theme.NoTitleBar" >
-        </activity>
+            android:theme="@android:style/Theme.NoTitleBar" />
         <activity
             android:name="org.walkersguide.userinterface.HelpActivity"
             android:label="@string/title_help_activity"
-            android:theme="@android:style/Theme.NoTitleBar" >
-        </activity>
+            android:theme="@android:style/Theme.NoTitleBar" />
+        <activity
+            android:name="org.walkersguide.userinterface.RouteImportActivity"
+            android:label="@string/title_route_import_activity"
+            android:theme="@android:style/Theme.NoTitleBar" />
+        <activity
+            android:name="org.walkersguide.userinterface.BlockWaySegmentActivity"
+            android:label="@string/title_block_way_segment_activity"
+            android:theme="@android:style/Theme.NoTitleBar"
+            android:windowSoftInputMode="stateVisible" />
     </application>
 </manifest>

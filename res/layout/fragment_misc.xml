@@ -64,6 +64,12 @@
                 android:text="@string/buttonOpenHistory" />
 
             <Button
+                android:id="@+id/buttonOpenBlockedWays"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/buttonOpenBlockedWays" />
+
+            <Button
                 android:id="@+id/buttonAddFavorite"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

@@ -2,7 +2,6 @@ package org.walkersguide.userinterface;
 
 import org.walkersguide.R;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -15,7 +14,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class EnterPOIPresetNameActivity extends Activity {
+public class EnterPOIPresetNameActivity extends AbstractActivity {
 
     private EditText editPresetName;
 

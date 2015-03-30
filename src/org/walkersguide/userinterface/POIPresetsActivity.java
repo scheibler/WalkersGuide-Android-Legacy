@@ -11,7 +11,6 @@ import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.POIPreset;
 import org.walkersguide.utils.SettingsManager;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
@@ -26,7 +25,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class POIPresetsActivity extends Activity {
+public class POIPresetsActivity extends AbstractActivity {
 
     private static final int ENTERPRESETNAME = 1879;
     private Globals globalData;
@@ -201,6 +200,8 @@ public class POIPresetsActivity extends Activity {
                         checkBox.setText(getResources().getString(R.string.labelPOICategoryNamedIntersection));
                     } else if (tag.equals("other_intersection")) {
                         checkBox.setText(getResources().getString(R.string.labelPOICategoryOtherIntersection));
+                    } else if (tag.equals("traffic_signals")) {
+                        checkBox.setText(getResources().getString(R.string.labelPOICategoryTrafficSignals));
                     } else if (tag.equals("trash")) {
                         checkBox.setText(getResources().getString(R.string.labelPOICategoryTrash));
                     } else {

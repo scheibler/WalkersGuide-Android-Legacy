@@ -236,12 +236,24 @@ public class Point implements Comparable<Point> {
         } else {
             s += this.getName() + " (" + this.getSubType() + ")";
         }
+        if (this instanceof POIPoint) {
+            POIPoint poi = (POIPoint) this;
+            if (poi.getEntranceList().size() == 1) {
+                s += Globals.getContext().getResources().getString(R.string.roPointOneEntrance);
+            } else if (poi.getEntranceList().size() > 1) {
+                s += String.format(
+                        Globals.getContext().getResources().getString(R.string.roPointMultipleEntrances),
+                        poi.getEntranceList().size() );
+            }
+        }
         if (this.getTurn() >= 0) {
             s += String.format( Globals.getContext().getResources().getString(R.string.roPointTurn),
                     HelperFunctions.getFormatedDirection(this.getTurn()) );
         } else if (this.getDistance() >= 0 && this.getBearing() >= 0) {
             s += String.format( Globals.getContext().getResources().getString(R.string.roPointDistanceAndBearing),
-                    this.getDistance(), HelperFunctions.getClockDirection(this.getBearing()) );
+                    this.getDistance(), HelperFunctions.getFormatedDirection(this.getBearing()) );
+            if (((Globals) Globals.getContext()).getSettingsManagerInstance().useGPSAsBearingSource())
+                s += " (GPS)";
         } else if (this.getDistance() >= 0) {
             s += String.format( Globals.getContext().getResources().getString(R.string.roPointDistance),
                     this.getDistance() );

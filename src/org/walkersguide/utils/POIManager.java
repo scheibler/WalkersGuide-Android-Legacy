@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Locale;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.walkersguide.R;
 import org.walkersguide.exceptions.PointListParsingException;
@@ -45,6 +46,18 @@ public class POIManager {
         downloadInProcess = false;
         if (downloader != null) {
             downloader.cancelDownloadProcess();
+            JSONObject requestJson = new JSONObject();
+            try {
+                requestJson.put("language", Locale.getDefault().getLanguage());
+                requestJson.put("session_id", globalData.getSessionId());
+            } catch (JSONException e) {
+                return;
+            }
+            downloader = new DataDownloader(mContext);
+            downloader.setDataDownloadListener(new CanceledRequestDownloadListener() );
+            downloader.execute( "post",
+                    globalData.getSettingsManagerInstance().getServerPath() + "/cancel_request",
+                    requestJson.toString() );
             downloader = null;
             preset.setLastLocation(null);
         }
@@ -70,7 +83,7 @@ public class POIManager {
         } else if (isInsidePublicTransport) {
             downloadNewData = false;
             System.out.println("xx download: inside public transport");
-        } else if (newLocation.distanceTo(preset.getLastLocationSinceDownload()) > (preset.getRange()*2/3)) {
+        } else if (newLocation.distanceTo(preset.getLastLocationSinceDownload()) > (preset.getRange()*1/2)) {
             preset.setPOIListStatus(POIPreset.UpdateStatus.RESETLISTPOSITION);
             downloadNewData = true;
             messageToast.setText("entfernung größer");
@@ -96,19 +109,25 @@ public class POIManager {
             preset.setLastSearchString(newSearchString);
             preset.setDownloadedNewData(true);
             downloadInProcess = true;
-            String params = "/get_pois?"
-                + "lat=" + String.valueOf(preset.getLastLocation().getLatitude())
-                + "&lon=" + String.valueOf(preset.getLastLocation().getLongitude())
-                + "&range=" + preset.getRange()
-                + "&tags=" + preset.getTags()
-                + "&language=" + Locale.getDefault().getLanguage();
-            if (!preset.getLastSearchString().equals("")) {
-                params += "&search=" + preset.getLastSearchString();
+            JSONObject requestJson = new JSONObject();
+            try {
+                requestJson.put("lat", preset.getLastLocation().getLatitude());
+                requestJson.put("lon", preset.getLastLocation().getLongitude());
+                requestJson.put("radius", preset.getRange());
+                requestJson.put("tags", preset.getTags());
+                requestJson.put("language", Locale.getDefault().getLanguage());
+                requestJson.put("session_id", globalData.getSessionId());
+                if (!preset.getLastSearchString().equals("")) {
+                    requestJson.put("search", preset.getLastSearchString());
+                }
+            } catch (JSONException e) {
+                return;
             }
             downloader = new DataDownloader(mContext);
             downloader.setDataDownloadListener(new POIDownloadListener() );
-            downloader.execute( "get",
-                    globalData.getSettingsManagerInstance().getServerPath(), params );
+            downloader.execute( "post",
+                    globalData.getSettingsManagerInstance().getServerPath() + "/get_poi",
+                    requestJson.toString() );
             return;
         }
 
@@ -203,4 +222,9 @@ public class POIManager {
         }
     }
 
+    private class CanceledRequestDownloadListener implements DataDownloader.DataDownloadListener {
+        @Override public void dataDownloadedSuccessfully(JSONObject jsonObject) {}
+        @Override public void dataDownloadFailed(String error) {}
+        @Override public void dataDownloadCanceled() {}
+    }
 }

@@ -6,18 +6,20 @@ import java.util.Collections;
 
 import org.walkersguide.MainActivity;
 import org.walkersguide.R;
+import org.walkersguide.routeobjects.POIPoint;
 import org.walkersguide.routeobjects.Point;
 import org.walkersguide.routeobjects.RouteObjectWrapper;
+import org.walkersguide.sensors.PositionManager;
+import org.walkersguide.sensors.SensorsManager;
 import org.walkersguide.utils.AddressManager;
-import org.walkersguide.utils.CompassCalibrationValidator;
 import org.walkersguide.utils.Globals;
+import org.walkersguide.utils.HelperFunctions;
 import org.walkersguide.utils.KeyboardManager;
+import org.walkersguide.utils.ObjectParser;
 import org.walkersguide.utils.POIManager;
 import org.walkersguide.utils.POIPreset;
-import org.walkersguide.utils.PositionManager;
-import org.walkersguide.utils.SensorsManager;
+import org.walkersguide.utils.Route;
 import org.walkersguide.utils.SettingsManager;
-import org.walkersguide.utils.SourceRoute;
 
 import android.app.Activity;
 import android.app.Dialog;
@@ -65,7 +67,6 @@ public class POIFragment extends Fragment {
     private SettingsManager settingsManager;
     private AddressManager addressManager;
     private KeyboardManager keyboardManager;
-    private CompassCalibrationValidator compassCalibrationValidator;
     private Vibrator vibrator;
     private LinearLayout mainLayout, radiusLayout, searchLayout;
     private Dialog dialog;
@@ -75,8 +76,7 @@ public class POIFragment extends Fragment {
     private int currentRadius;
     private Point currentLocation;
     private int currentCompassValue, tempCompassValue, lastCompassValue;
-    private Handler mHandler, gpsStatusHandler, progressHandler;
-    private GPSTimer gpsTimer;
+    private Handler gpsStatusHandler, progressHandler;
     private GPSStatusUpdater gpsStatusUpdater;
     private ProgressUpdater progressUpdater;
     private Toast messageToast;
@@ -93,10 +93,7 @@ public class POIFragment extends Fragment {
         sensorsManager = globalData.getSensorsManagerInstance();
         addressManager = globalData.getAddressManagerInstance();
         keyboardManager = globalData.getKeyboardManagerInstance();
-        compassCalibrationValidator = globalData.getCompasscalibrationvalidatorInstance();
         vibrator = (Vibrator) getActivity().getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
-        mHandler = new Handler();
-        gpsTimer = new GPSTimer();
         gpsStatusHandler = new Handler();
         gpsStatusUpdater = new GPSStatusUpdater();
         progressHandler = new Handler();
@@ -149,13 +146,7 @@ public class POIFragment extends Fragment {
                 // change radius spinner selection
                 currentRadius = preset.getRange();
                 // update poi list
-                if (currentLocation != null) {
-                    queryPOIListUpdate();
-                } else {
-                    gpsTimer.updateActivationTime();
-                    mHandler.postDelayed(gpsTimer, 100);
-                    positionManager.resumeGPS();
-                }
+                queryPOIListUpdate();
             }
             public void onNothingSelected(AdapterView<?> parent) {}
         });
@@ -184,17 +175,16 @@ public class POIFragment extends Fragment {
                     messageToast.show();
                     return;
                 }
+                Spinner spinnerAdditionalOptions = (Spinner) mainLayout.findViewById(R.id.spinnerAdditionalOptions);
                 Button buttonRefresh = (Button) mainLayout.findViewById(R.id.buttonRefresh);
                 int status = (Integer) buttonRefresh.getTag();
                 if (status == 0) {
                     buttonRefresh.setTag(1);
-                    gpsTimer.updateActivationTime();
-                    mHandler.postDelayed(gpsTimer, 100);
-                    positionManager.resumeGPS();
+                    queryPOIListUpdate();
+                    if ( ((String) spinnerAdditionalOptions.getSelectedItem()).equals(getResources().getString(R.string.arrayAAAddress)) )
+                        queryAddressUpdate();
                 } else {
                     buttonRefresh.setTag(0);
-                    positionManager.stopGPS();
-                    System.out.println("xx poiFragment cancel");
                     poiManager.cancel();
                 }
                 updateUserInterface();
@@ -202,18 +192,18 @@ public class POIFragment extends Fragment {
         });
         buttonRefresh.setOnLongClickListener(new OnLongClickListener() {
             @Override public boolean onLongClick(View v) {
+                Spinner spinnerAdditionalOptions = (Spinner) mainLayout.findViewById(R.id.spinnerAdditionalOptions);
                 Button buttonRefresh = (Button) mainLayout.findViewById(R.id.buttonRefresh);
                 int status = (Integer) buttonRefresh.getTag();
                 if (status == 0) {
                     messageToast.setText(getResources().getString(R.string.messageRefreshMonitorStarted));
                     messageToast.show();
                     buttonRefresh.setTag(2);
-                    gpsTimer.updateActivationTime();
-                    mHandler.postDelayed(gpsTimer, 100);
-                    positionManager.resumeGPS();
+                    queryPOIListUpdate();
+                    if ( ((String) spinnerAdditionalOptions.getSelectedItem()).equals(getResources().getString(R.string.arrayAAAddress)) )
+                        queryAddressUpdate();
                 } else {
                     buttonRefresh.setTag(0);
-                    positionManager.stopGPS();
                     poiManager.cancel();
                 }
                 updateUserInterface();
@@ -252,13 +242,7 @@ public class POIFragment extends Fragment {
                     return;
                 }
                 if (newOption.equals(getResources().getString(R.string.arrayAAAddress))) {
-                    if (currentLocation != null) {
-                        queryAddressUpdate();
-                    } else {
-                        gpsTimer.updateActivationTime();
-                        mHandler.postDelayed(gpsTimer, 100);
-                        positionManager.resumeGPS();
-                    }
+                    queryAddressUpdate();
                 }
                 settingsManager.addToTemporaryPOIFragmentSettings("spinnerAdditionalOptions", pos);
                 updateLabelStatus();
@@ -266,8 +250,10 @@ public class POIFragment extends Fragment {
             }
             public void onNothingSelected(AdapterView<?> parent) {}
         });
-        ArrayAdapter<CharSequence> adapterAdditionalOptions = ArrayAdapter.createFromResource(getActivity(),
-                R.array.arrayAdditionalOptionsPF, android.R.layout.simple_spinner_item);
+        ArrayList<CharSequence> listAdditionalOptions = new ArrayList<CharSequence>(Arrays.asList(
+                getResources().getStringArray(R.array.arrayAdditionalOptionsPF) ));
+        AdditionalOptionsAdapter adapterAdditionalOptions = new AdditionalOptionsAdapter(
+                getActivity(), android.R.layout.simple_list_item_1, listAdditionalOptions);
         adapterAdditionalOptions.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerAdditionalOptions.setAdapter(adapterAdditionalOptions);
 
@@ -279,13 +265,7 @@ public class POIFragment extends Fragment {
                 Spinner spinnerRadius = (Spinner) radiusLayout.findViewById(R.id.spinnerRadius);
                 if (spinnerRadius.getSelectedItemPosition() > 0) {
                     currentRadius = radiusValues[spinnerRadius.getSelectedItemPosition()-1];
-                    if (currentLocation != null) {
-                        queryPOIListUpdate();
-                    } else {
-                        gpsTimer.updateActivationTime();
-                        mHandler.postDelayed(gpsTimer, 100);
-                        positionManager.resumeGPS();
-                    }
+                    queryPOIListUpdate();
                 }
             }
         });
@@ -299,13 +279,7 @@ public class POIFragment extends Fragment {
                 }
                 poiManager.cancel();
                 currentRadius = (Integer) parent.getItemAtPosition(pos);
-                if (currentLocation != null) {
-                    queryPOIListUpdate();
-                } else {
-                    gpsTimer.updateActivationTime();
-                    mHandler.postDelayed(gpsTimer, 100);
-                    positionManager.resumeGPS();
-                }
+                queryPOIListUpdate();
             }
             public void onNothingSelected(AdapterView<?> parent) {}
         });
@@ -322,13 +296,7 @@ public class POIFragment extends Fragment {
                 Spinner spinnerRadius = (Spinner) radiusLayout.findViewById(R.id.spinnerRadius);
                 if (spinnerRadius.getSelectedItemPosition() < radiusValues.length-1) {
                     currentRadius = radiusValues[spinnerRadius.getSelectedItemPosition()+1];
-                    if (currentLocation != null) {
-                        queryPOIListUpdate();
-                    } else {
-                        gpsTimer.updateActivationTime();
-                        mHandler.postDelayed(gpsTimer, 100);
-                        positionManager.resumeGPS();
-                    }
+                    queryPOIListUpdate();
                 }
             }
         });
@@ -341,13 +309,7 @@ public class POIFragment extends Fragment {
                     poiManager.cancel();
                     EditText searchField = (EditText) searchLayout.findViewById(R.id.editSearch);
                     currentSearchString = searchField.getText().toString();
-                    if (currentLocation != null) {
-                        queryPOIListUpdate();
-                    } else {
-                        gpsTimer.updateActivationTime();
-                        mHandler.postDelayed(gpsTimer, 100);
-                        positionManager.resumeGPS();
-                    }
+                    queryPOIListUpdate();
                     InputMethodManager inputManager = (InputMethodManager)
                             getActivity().getApplicationContext().getSystemService(Context.INPUT_METHOD_SERVICE);
                    inputManager.hideSoftInputFromWindow(
@@ -396,13 +358,7 @@ public class POIFragment extends Fragment {
                 updateUserInterface();
                 // query new data without search string from server
                 poiManager.cancel();
-                if (currentLocation != null) {
-                    queryPOIListUpdate();
-                } else {
-                    gpsTimer.updateActivationTime();
-                    mHandler.postDelayed(gpsTimer, 100);
-                    positionManager.resumeGPS();
-                }
+                queryPOIListUpdate();
                 return true;
             }
         });
@@ -414,10 +370,20 @@ public class POIFragment extends Fragment {
                 RouteObjectWrapper object = new RouteObjectWrapper(
                         (Point) parent.getItemAtPosition(position) );
                 if (settingsManager.getValueFromTemporaryPOIFragmentSettings("routeRequestPosition") != null) {
-                    SourceRoute sourceRoute = settingsManager.getRouteRequest();
-                    sourceRoute.replaceRouteObjectAtIndex(settingsManager.getValueFromTemporaryPOIFragmentSettings("routeRequestPosition"), object);
-                    settingsManager.setRouteRequest(sourceRoute);
-                    mPOIFListener.switchToOtherFragment("start");
+                    POIPoint poi = null;
+                    if (object.getStation() != null) {
+                        poi = object.getStation();
+                    } else if (object.getPOI() != null) {
+                        poi = object.getPOI();
+                    }
+                    if (poi != null && poi.getEntranceList().size() > 0) {
+                        showEntrancesDialog(poi, position);
+                    } else {
+                        Route sourceRoute = settingsManager.getRouteRequest();
+                        sourceRoute.replaceRouteObjectAtIndex(settingsManager.getValueFromTemporaryPOIFragmentSettings("routeRequestPosition"), object);
+                        settingsManager.setRouteRequest(sourceRoute);
+                        mPOIFListener.switchToOtherFragment("start");
+                    }
                 } else {
                     Intent intent = new Intent(getActivity(), RouteObjectDetailsActivity.class);
                     intent.putExtra("route_object", object.toJson().toString());
@@ -457,9 +423,8 @@ public class POIFragment extends Fragment {
         settingsManager.addToTemporaryPOIFragmentSettings("routeRequestPosition", null);
         gpsStatusHandler.removeCallbacks(gpsStatusUpdater);
         progressHandler.removeCallbacks(progressUpdater);
-        mHandler.removeCallbacks(gpsTimer);
-        positionManager.stopGPS();
-        sensorsManager.stopSensors();
+        positionManager.setPositionListener(null);
+        sensorsManager.setSensorsListener(null);
         poiManager.cancel();
     }
 
@@ -469,7 +434,15 @@ public class POIFragment extends Fragment {
             globalData = ((Globals) getActivity().getApplicationContext());
         }
         settingsManager = globalData.getSettingsManagerInstance();
+        sensorsManager.setSensorsListener(new MySensorsListener());
+        positionManager.setPositionListener(new MyPositionListener());
+        poiManager.setPOIListener(new MyPOIListener());
+        addressManager.setAddressListener(new MyAddressListener());
+        keyboardManager.setKeyboardListener(new MyKeyboardListener());
+        // start progress handler
+        progressHandler.postDelayed(progressUpdater, 100);
         // restore user interface
+        Spinner spinnerAdditionalOptions = (Spinner) mainLayout.findViewById(R.id.spinnerAdditionalOptions);
         Button buttonRefresh = (Button) mainLayout.findViewById(R.id.buttonRefresh);
         buttonRefresh.setTag(1);
         if (settingsManager.getValueFromTemporaryPOIFragmentSettings("buttonRefreshStatus") != null) {
@@ -494,28 +467,16 @@ public class POIFragment extends Fragment {
         } else {
             // no poi preset category available
             buttonRefresh.setTag(0);
-            Spinner spinnerAdditionalOptions = (Spinner) mainLayout.findViewById(R.id.spinnerAdditionalOptions);
             ArrayAdapter<String> adapterAdditionalOptions =
                 (ArrayAdapter<String>) spinnerAdditionalOptions.getAdapter();
             settingsManager.addToTemporaryPOIFragmentSettings("spinnerAdditionalOptions",
                     adapterAdditionalOptions.getPosition( getResources().getString(R.string.arrayAADisabled)) );
         }
         updateUserInterface(  );
-        // start position and sensors management
-        poiManager.setPOIListener(new MyPOIListener());
-        addressManager.setAddressListener(new MyAddressListener());
-        keyboardManager.setKeyboardListener(new MyKeyboardListener());
-        sensorsManager.setSensorsListener(new MySensorsListener());
-        sensorsManager.resumeSensors();
-        positionManager.setPositionListener(new MyPositionListener());
-        if ((Integer) buttonRefresh.getTag() > 0) {
-            gpsTimer.updateActivationTime();
-            mHandler.postDelayed(gpsTimer, 100);
-            positionManager.resumeGPS();
-        }
-        // gps quality hanler
-        gpsStatusHandler.postDelayed(gpsStatusUpdater, 100);
-        progressHandler.postDelayed(progressUpdater, 100);
+        // update poi list and address
+        queryPOIListUpdate();
+        if ( ((String) spinnerAdditionalOptions.getSelectedItem()).equals(getResources().getString(R.string.arrayAAAddress)) )
+            queryAddressUpdate();
     }
 
     public synchronized void updateUserInterface() {
@@ -637,6 +598,101 @@ public class POIFragment extends Fragment {
         settingsManager.updatePOIPreset(preset);
     }
 
+    private void showEntrancesDialog(POIPoint poi, int listIndex) {
+        dialog = new Dialog(getActivity());
+        dialog.setContentView(R.layout.dialog_scrollable_empty);
+        dialog.setCanceledOnTouchOutside(false);
+        LinearLayout dialogLayout = (LinearLayout) dialog.findViewById(R.id.linearLayoutMain);
+        LayoutParams lp = new LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT );
+        TextView label;
+        // heading and description
+        label = new TextView(getActivity());
+        label.setLayoutParams(lp);
+        label.setText( String.format(
+                    getResources().getString(R.string.labelEntranceDialogHeading),
+                    poi.getName() ));
+        dialogLayout.addView(label);
+        label = new TextView(getActivity());
+        label.setLayoutParams(lp);
+        if (poi.getEntranceList().size() == 1) {
+            label.setText(getResources().getString(R.string.labelEntranceDialogSingle));
+        } else {
+            label.setText( String.format(
+                        getResources().getString(R.string.labelEntranceDialogMultiple),
+                        poi.getEntranceList().size() ));
+        }
+        dialogLayout.addView(label);
+
+        Button buttonNoEntrance = new Button(getActivity());
+        buttonNoEntrance.setLayoutParams(lp);
+        buttonNoEntrance.setId(listIndex);
+        buttonNoEntrance.setText(getResources().getString(R.string.buttonNoEntranceButCoordinates));
+        buttonNoEntrance.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                ListView listView = (ListView) mainLayout.findViewById(R.id.listPOIs);
+                RouteObjectWrapper object = new RouteObjectWrapper(
+                        (Point) listView.getItemAtPosition(view.getId()) );
+                Route sourceRoute = settingsManager.getRouteRequest();
+                sourceRoute.replaceRouteObjectAtIndex(settingsManager.getValueFromTemporaryPOIFragmentSettings("routeRequestPosition"), object);
+                settingsManager.setRouteRequest(sourceRoute);
+                dialog.dismiss();
+                mPOIFListener.switchToOtherFragment("start");
+            }
+        });
+        dialogLayout.addView(buttonNoEntrance);
+
+        int index = 0;
+        for (POIPoint entrance : poi.getEntranceList()) {
+            Button buttonEntrance = new Button(getActivity());
+            buttonEntrance.setLayoutParams(lp);
+            buttonEntrance.setId(index*1000000 + listIndex);
+            buttonEntrance.setText(String.format(
+                    getResources().getString(R.string.labelEntranceDropDown),
+                    entrance.getName(),
+                    currentLocation.distanceTo(entrance),
+                    HelperFunctions.getFormatedDirection(currentLocation.bearingTo(entrance)-currentCompassValue) ));
+            buttonEntrance.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
+                    int entranceIndex = Math.round(view.getId()/1000000);
+                    int listIndex = view.getId() - entranceIndex*1000000;
+                    ListView listView = (ListView) mainLayout.findViewById(R.id.listPOIs);
+                    RouteObjectWrapper object = new RouteObjectWrapper(
+                            (Point) listView.getItemAtPosition(listIndex) );
+                    // get selected entrance
+                    POIPoint poi = object.getPOI();
+                    if (poi == null)
+                        poi = object.getStation();
+                    POIPoint entrance = poi.getEntranceList().get(entranceIndex);
+                    // create a new object with the lat and lon values of the entrance
+                    RouteObjectWrapper newObject = ObjectParser.parseRouteObject(object.toJson());
+                    newObject.getPoint().setName(object.getPoint().getName()
+                            + " (" + entrance.getName() + ")");
+                    newObject.getPoint().setLatitude(entrance.getLatitude());
+                    newObject.getPoint().setLongitude(entrance.getLongitude());
+                    Route sourceRoute = settingsManager.getRouteRequest();
+                    sourceRoute.replaceRouteObjectAtIndex(settingsManager.getValueFromTemporaryPOIFragmentSettings("routeRequestPosition"), newObject);
+                    settingsManager.setRouteRequest(sourceRoute);
+                    dialog.dismiss();
+                    mPOIFListener.switchToOtherFragment("start");
+                }
+            });
+            dialogLayout.addView(buttonEntrance);
+            index += 1;
+        }
+
+        Button buttonCancel = new Button(getActivity());
+        buttonCancel.setLayoutParams(lp);
+        buttonCancel.setText(getResources().getString(R.string.dialogCancel));
+        buttonCancel.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                dialog.dismiss();
+            }
+        });
+        dialogLayout.addView(buttonCancel);
+        dialog.show();
+    }
+
     private void showActionsMenuDialog(int objectIndex) {
         ListView listView = (ListView) mainLayout.findViewById(R.id.listPOIs);
         RouteObjectWrapper routeObject = new RouteObjectWrapper(
@@ -738,7 +794,7 @@ public class POIFragment extends Fragment {
         label.setLayoutParams(lpMarginTop);
         label.setText(getResources().getString(R.string.labelAsNewRouteObject));
         dialogLayout.addView(label);
-        SourceRoute sourceRoute = settingsManager.getRouteRequest();
+        Route sourceRoute = settingsManager.getRouteRequest();
         int index = 0;
         for (RouteObjectWrapper object : sourceRoute.getRouteList()) {
             Button buttonRouteObject = new Button(getActivity());
@@ -769,7 +825,7 @@ public class POIFragment extends Fragment {
                     ListView listView = (ListView) mainLayout.findViewById(R.id.listPOIs);
                     RouteObjectWrapper object = new RouteObjectWrapper(
                             (Point) listView.getItemAtPosition(listIndex) );
-                    SourceRoute sourceRoute = settingsManager.getRouteRequest();
+                    Route sourceRoute = settingsManager.getRouteRequest();
                     sourceRoute.replaceRouteObjectAtIndex(routeRequestIndex, object);
                     settingsManager.setRouteRequest(sourceRoute);
                     dialog.dismiss();
@@ -779,7 +835,7 @@ public class POIFragment extends Fragment {
             dialogLayout.addView(buttonRouteObject);
             index += 1;
         }
-        
+
         Button buttonCancel = new Button(getActivity());
         buttonCancel.setLayoutParams(lp);
         buttonCancel.setText(getResources().getString(R.string.dialogCancel));
@@ -931,46 +987,23 @@ public class POIFragment extends Fragment {
 
     private class MyPositionListener implements PositionManager.PositionListener {
         public void locationChanged(Location location) {
-            if ((positionManager.getStatus() == PositionManager.Status.GPS) && (gpsTimer.isRunning())) {
-                if ((location.getProvider().equals("network")) && ((System.currentTimeMillis() - location.getTime()) > 1*60*1000)) {
-                    gpsTimer.setRunning(false);
-                    //messageToast.setText("Position verworfen, netzwerk, älter als 1 min");
-                    //messageToast.show();
-                    return;
-                }
-                if (location.getProvider().equals("gps")) {
-                    gpsTimer.setRunning(false);
-                    //messageToast.setText("Position verworfen, gps");
-                    //messageToast.show();
-                    return;
-                }
-                //messageToast.setText("provider is " + location.getProvider());
-                //messageToast.show();
-            }
             currentLocation = new Point(
                     getResources().getString(R.string.locationNameCurrentPosition), location);
-            if (location.getSpeed() >= 5.0) {
+            if (location.getSpeed() > 3.0) {
                 numberOfHighSpeeds = 2;
             } else if (numberOfHighSpeeds > 0) {
                 numberOfHighSpeeds -= 1;
             }
-            mHandler.removeCallbacks(gpsTimer);
-            Button buttonRefresh = (Button) mainLayout.findViewById(R.id.buttonRefresh);
-            if ((Integer) buttonRefresh.getTag() > 0) {
-                queryPOIListUpdate();
-            }
+
+            // continuous update if auto refresh is activated
             Spinner spinnerAdditionalOptions = (Spinner) mainLayout.findViewById(R.id.spinnerAdditionalOptions);
-            if ( ((String) spinnerAdditionalOptions.getSelectedItem()).equals(getResources().getString(R.string.arrayAAAddress)) ) {
-                queryAddressUpdate();
-            }
-            // if the refresh monitor is disabled,
-            // turn off gps to extend battery life
-            if ((Integer) buttonRefresh.getTag() < 2) {
-            // && ! ((String) spinnerAdditionalOptions.getSelectedItem()).equals(getResources().getString(R.string.arrayAAAddress)) ) {
-                positionManager.stopGPS();
+            Button buttonRefresh = (Button) mainLayout.findViewById(R.id.buttonRefresh);
+            if ((Integer) buttonRefresh.getTag() == 2) {
+                queryPOIListUpdate();
+                if ( ((String) spinnerAdditionalOptions.getSelectedItem()).equals(getResources().getString(R.string.arrayAAAddress)) )
+                    queryAddressUpdate();
             }
         }
-
         public void displayGPSSettingsDialog() {
             Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
             startActivity(intent);
@@ -978,8 +1011,8 @@ public class POIFragment extends Fragment {
     }
 
     private class MySensorsListener implements SensorsManager.SensorsListener {
-        public void compassChanged(float degree) {
-            currentCompassValue = (int) Math.round(degree);
+        public void compassValueChanged(int degree) {
+            currentCompassValue = degree;
             Button buttonRefresh = (Button) mainLayout.findViewById(R.id.buttonRefresh);
             if ( ((Integer) buttonRefresh.getTag() == 2)) {
                 int diff = Math.abs(currentCompassValue - lastCompassValue);
@@ -989,15 +1022,35 @@ public class POIFragment extends Fragment {
                     lastCompassValue = currentCompassValue;
                     queryPOIListUpdate();
                 }
-                // check calibration of compass
-                if (currentLocation != null) {
-                    compassCalibrationValidator.validate(
-                            currentLocation.getLocationObject(), currentCompassValue);
+            }
+        }
+        public void shakeDetected() {
+            if (settingsManager.getPOIPresetList().size() == 0) {
+                messageToast.setText(
+                    getResources().getString(R.string.labelNoPresetAvailable));
+                messageToast.show();
+                return;
+            }
+            if (settingsManager.getShakeForNextRoutePoint() == true) {
+                Spinner spinnerAdditionalOptions = (Spinner) mainLayout.findViewById(R.id.spinnerAdditionalOptions);
+                Button buttonRefresh = (Button) mainLayout.findViewById(R.id.buttonRefresh);
+                if ((Integer) buttonRefresh.getTag() == 0) {
+                    buttonRefresh.setTag(1);
+                    updateUserInterface();
+                    queryPOIListUpdate();
+                    if ( ((String) spinnerAdditionalOptions.getSelectedItem()).equals(getResources().getString(R.string.arrayAAAddress)) )
+                        queryAddressUpdate();
+                    messageToast.setText("Aktualisiere");
+                    messageToast.show();
+                } else if ((Integer) buttonRefresh.getTag() == 1) {
+                    buttonRefresh.setTag(0);
+                    poiManager.cancel();
+                    updateUserInterface();
+                    messageToast.setText("Abgebrochen");
+                    messageToast.show();
                 }
             }
         }
-
-        public void acceleratorChanged(double accel) {}
     }
 
     public class POIPresetListAdapter extends ArrayAdapter<POIPreset> {
@@ -1064,6 +1117,77 @@ public class POIFragment extends Fragment {
 
         public void setArrayList(ArrayList<POIPreset> array) {
             this.presetArray = array;
+            notifyDataSetChanged();
+        }
+
+        private class EntryHolder {
+            public TextView contents;
+        }
+    }
+
+    public class AdditionalOptionsAdapter extends ArrayAdapter<CharSequence> {
+        private Context ctx;
+        private LayoutInflater m_inflater = null;
+        public ArrayList<CharSequence> additionalOptionsArray;
+
+        public AdditionalOptionsAdapter(Context context, int textViewResourceId, ArrayList<CharSequence> array) {
+            super(context, textViewResourceId);
+            this.additionalOptionsArray = array;
+            this.ctx = context;
+            m_inflater = LayoutInflater.from(ctx);
+        }
+
+        @Override public View getView(int position, View convertView, ViewGroup parent) {
+            EntryHolder holder;
+            if (convertView == null) {
+                holder = new EntryHolder();
+                convertView = m_inflater.inflate(R.layout.table_row_one_column, parent, false);
+                holder.contents= (TextView) convertView.findViewById(R.id.labelColumnOne);
+                convertView.setTag(holder);
+            } else {
+                holder = (EntryHolder) convertView.getTag();
+            }
+            holder.contents.setText(getItem(position));
+            return convertView;
+        }
+
+        @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
+            EntryHolder holder;
+            if (convertView == null) {
+                holder = new EntryHolder();
+                convertView = m_inflater.inflate(R.layout.table_row_one_column, parent, false);
+                holder.contents= (TextView) convertView.findViewById(R.id.labelColumnOne);
+                convertView.setTag(holder);
+            } else {
+                holder = (EntryHolder) convertView.getTag();
+            }
+            if (position == 0) {
+                holder.contents.setText(
+                            getResources().getString(R.string.arrayAADisabledOpen) );
+            } else {
+                holder.contents.setText(getItem(position));
+            }
+            return convertView;
+        }
+
+        @Override public int getCount() {
+            if (additionalOptionsArray != null)
+                return additionalOptionsArray.size();
+            return 0;
+        }
+
+        @Override public CharSequence getItem(int position) {
+            return additionalOptionsArray.get(position);
+        }
+
+        @Override public int getPosition(CharSequence item) {
+            if (additionalOptionsArray.contains(item))
+                return additionalOptionsArray.indexOf(item);
+            return 0;
+        }
+
+        public void setArrayList(ArrayList<CharSequence> array) {
+            this.additionalOptionsArray = array;
             notifyDataSetChanged();
         }
 
@@ -1142,41 +1266,6 @@ public class POIFragment extends Fragment {
         }
     }
 
-    private class GPSTimer implements Runnable {
-        private long activationTime;
-        private boolean isRunning;
-
-        public GPSTimer() {
-            updateActivationTime();
-        }
-
-        public void updateActivationTime() {
-            this.activationTime = System.currentTimeMillis();
-            this.isRunning = true;
-        }
-
-        public boolean isRunning() {
-            if (((System.currentTimeMillis() - activationTime) < 3000) && (isRunning == true))
-                return true;
-            return false;
-        }
-
-        public void setRunning(boolean b) {
-            this.isRunning = b;
-        }
-
-        public void run() {
-            long currentTime = System.currentTimeMillis();
-            if ((currentTime - activationTime) > 20000) {
-                messageToast.setText(getResources().getString(R.string.messageUseLastKnownLocation));
-                messageToast.show();
-                positionManager.getLastKnownLocation();
-                return;
-            }
-            mHandler.postDelayed(this, 1000);
-        }
-    }
-
     private class GPSStatusUpdater implements Runnable {
         public void run() {
             Location location = null;
@@ -1213,7 +1302,7 @@ public class POIFragment extends Fragment {
                         getResources().getString(R.string.messageGPSStatusSignalDetails),
                         gpsStatusText, location.getAccuracy(),
                         ((System.currentTimeMillis() - location.getTime()) / 1000),
-                        location.getSpeed() );
+                        location.getSpeed()*3.6 );
             }
             updateLabelStatus();
             gpsStatusHandler.postDelayed(this, 1000);

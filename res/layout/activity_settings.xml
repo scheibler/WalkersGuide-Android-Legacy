@@ -67,12 +67,12 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
-            <Button
-                android:id="@+id/buttonShakeNextPoint"
+            <TextView
+                android:id="@+id/labelShakeDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dip"
-                android:text="@string/buttonShakeNextPoint"  />
+                android:text="@string/labelShakeDescription"  />
 
             <LinearLayout
                 android:id="@+id/linearLayoutShakeIntensity"
@@ -80,19 +80,18 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal" >
 
-                <TextView
-                    android:id="@+id/labelChangeShakeIntensity"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1.0"
-                    android:text="@string/labelChangeShakeIntensity"  />
-
                 <Button
-                    android:id="@+id/buttonChangeShakeIntensity"
+                    android:id="@+id/buttonShakeNextPoint"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_weight="1.0"
-                    android:text="@string/buttonChangeShakeIntensity"  />
+                    android:text="@string/buttonShakeNextPoint"  />
+
+                <Spinner
+                    android:id="@+id/spinnerShakeIntensity"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1.0" />
             </LinearLayout>
 
             <!-- server settings -->

@@ -56,7 +56,9 @@ public class IntersectionPoint extends Point {
                     HelperFunctions.getFormatedDirection(super.getTurn()) );
         } else if (super.getDistance() >= 0 && super.getBearing() >= 0) {
             s += String.format( Globals.getContext().getResources().getString(R.string.roPointDistanceAndBearing),
-                    super.getDistance(), HelperFunctions.getClockDirection(super.getBearing()) );
+                    super.getDistance(), HelperFunctions.getFormatedDirection(super.getBearing()) );
+            if (((Globals) Globals.getContext()).getSettingsManagerInstance().useGPSAsBearingSource())
+                s += " (GPS)";
         } else if (super.getDistance() >= 0) {
             s += String.format( Globals.getContext().getResources().getString(R.string.roPointDistance),
                     super.getDistance() );
@@ -96,12 +98,12 @@ public class IntersectionPoint extends Point {
         return jsonObject;
     }
 
-    public class IntersectionWay {
+    public class IntersectionWay implements Comparable<IntersectionPoint.IntersectionWay> {
 
         private String name;
         private double latitude;
         private double longitude;
-        private int intersection_bearing;
+        private int intersection_bearing, relativeBearing;
         private int wayId;
         private String subType;
         private String surface;
@@ -112,6 +114,7 @@ public class IntersectionPoint extends Point {
             this.longitude = lon;
             this.name = name;
             this.intersection_bearing = bearing;
+            this.relativeBearing = 0;
             this.subType = subType;
             this.surface = "";
             this.sidewalk = -1;
@@ -136,6 +139,18 @@ public class IntersectionPoint extends Point {
 
         public String getSubType() {
             return this.subType;
+        }
+
+        public int getRelativeBearing() {
+            return this.relativeBearing;
+        }
+
+        public void setRelativeBearing(int compassValue) {
+            this.relativeBearing = this.intersection_bearing - compassValue;
+            if (this.relativeBearing < -157)
+                this.relativeBearing += 360;
+            if (this.relativeBearing > 202)
+                this.relativeBearing -= 360;
         }
 
         public void addSurface(String surface) {
@@ -222,5 +237,31 @@ public class IntersectionPoint extends Point {
             return jsonObject;
         }
 
+    	@Override public int hashCode() {
+	    	final int prime = 31;
+            return prime + this.name.hashCode() + this.intersection_bearing;
+    	}
+
+    	@Override public boolean equals(Object obj) {
+	    	if (this == obj)
+		    	return true;
+    		if (obj == null)
+	    		return false;
+    		if (!(obj instanceof IntersectionPoint.IntersectionWay))
+	    		return false;
+    		IntersectionPoint.IntersectionWay other = (IntersectionPoint.IntersectionWay) obj;
+            if (this.name.equals(other.getName()) && this.intersection_bearing == other.getIntersectionBearing())
+                return true;
+            return false;
+        }
+
+    	@Override public int compareTo(IntersectionPoint.IntersectionWay other) {
+            if (this.relativeBearing < other.getRelativeBearing()) {
+                return -1;
+            } else if (this.relativeBearing > other.getRelativeBearing()) {
+                return 1;
+            }
+            return this.name.compareTo(other.getName());
+        }
     }
 }

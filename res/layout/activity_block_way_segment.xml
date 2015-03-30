@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/linearLayoutMain"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:id="@+id/linearLayoutMain"
+    android:orientation="vertical" >
 
     <LinearLayout
         android:id="@+id/linearLayoutTop"
@@ -19,51 +19,46 @@
             android:text="@string/dialogCancel" />
 
         <TextView
-            android:id="@+id/labelHeading"
+            android:id="@+id/labelHeader"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="1.0"
-            android:text="@string/title_transport_route_chooser_activity" 
+            android:text="@string/labelBlockWaySegmentActivityHeading" 
             android:textSize="18sp" />
+
+        <Button
+            android:id="@+id/buttonOK"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.0"
+            android:text="@string/dialogApply" />
     </LinearLayout>
 
     <TextView
-        android:id="@+id/labelRouteDescription"
+        android:id="@+id/labelName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="18sp" />
+        android:text="@string/labelBlockedWayName" />
 
-    <RadioGroup
-        android:id="@+id/radioRouteSortCriteria"
+    <LinearLayout
+        android:id="@+id/linearLayout2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal" >
 
-        <RadioButton
-            android:id="@+id/radioButtonRecommendedConnections"
+        <EditText
+            android:id="@+id/editName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_weight="1"
+            android:hint="@string/hintEnterBlockedWay"
+            android:inputType="text" />
+
+        <Button
+            android:id="@+id/buttonDelete"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/radioButtonRecommendedConnections" />
-
-        <RadioButton
-            android:id="@+id/radioButtonAllConnections"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/radioButtonAllConnections" />
-    </RadioGroup>
-
-    <ExpandableListView
-        android:id="@+id/listTransportRoutes"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
-
-    <TextView
-        android:id="@+id/labelEmptyTransportRouteList"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/labelNoTransportRoutes" 
-        android:textSize="18sp" />
+            android:text="@string/dialogDelete" />
+    </LinearLayout>
 </LinearLayout>

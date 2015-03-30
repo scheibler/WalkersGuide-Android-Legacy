@@ -1,6 +1,9 @@
 package org.walkersguide;
 
 import org.walkersguide.exceptions.CustomExceptionHandler;
+import org.walkersguide.sensors.PositionManager;
+import org.walkersguide.sensors.SensorsManager;
+import org.walkersguide.userinterface.AbstractActivity;
 import org.walkersguide.userinterface.MiscFragment;
 import org.walkersguide.userinterface.POIFragment;
 import org.walkersguide.userinterface.RouterFragment;
@@ -25,7 +28,7 @@ import android.widget.Toast;
 
 
 
-public class MainActivity extends Activity {
+public class MainActivity extends AbstractActivity {
 
     private MyMessageFromStartFragmentListener mSFListener;
     private MyMessageFromRouterFragmentListener mRouterFListener;
@@ -38,9 +41,11 @@ public class MainActivity extends Activity {
     private Toast messageToast;
     private Dialog dialog;
     private boolean backButtonClicked, wasLongPressed;
-    private AudioManager audioManager;
     private Globals globalData;
+    private AudioManager audioManager;
     private KeyboardManager keyboardManager;
+    private PositionManager positionManager;
+    private SensorsManager sensorsManager;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -53,6 +58,10 @@ public class MainActivity extends Activity {
             globalData = ((Globals) getApplicationContext());
         }
         keyboardManager = globalData.getKeyboardManagerInstance();
+        positionManager = globalData.getPositionManagerInstance();
+        positionManager.resumeGPS();
+        sensorsManager = globalData.getSensorsManagerInstance();
+        sensorsManager.resumeSensors();
 
         // log to sd card
         // Thread.setDefaultUncaughtExceptionHandler(new CustomExceptionHandler(
@@ -226,6 +235,13 @@ public class MainActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putInt("tab", getActionBar().getSelectedNavigationIndex());
+    }
+
+    public void onDestroy() {
+        super.onDestroy();
+        positionManager.stopGPS();
+        sensorsManager.stopSensors();
+        globalData.killSessionId();
     }
 
     public MyMessageFromStartFragmentListener getMessageFromStartFragmentListener() {

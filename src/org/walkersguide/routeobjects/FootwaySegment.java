@@ -14,6 +14,7 @@ public class FootwaySegment {
     private int bearing;
     private int distance;
     private int wayId;
+    private int wayClass;
     private ArrayList<Point> pois;
     private String type;
     private String subType;
@@ -29,6 +30,7 @@ public class FootwaySegment {
         this.type = "footway";
         this.subType= subType;
         this.wayId = -1;
+        this.wayClass = -1;
         this.surface = "";
         this.sidewalk = -1;
         this.wheelchair = -1;
@@ -38,6 +40,10 @@ public class FootwaySegment {
 
     public String getName() {
         return this.name;
+    }
+
+    public void addName(String name) {
+        this.name = name;
     }
 
     public int getDistance() {
@@ -58,6 +64,14 @@ public class FootwaySegment {
 
     public ArrayList<Point> getPOIs() {
         return this.pois;
+    }
+
+    public void addWayClass(int value) {
+        this.wayClass = value;
+    }
+
+    public int getWayClass() {
+        return this.wayClass;
     }
 
     public void addWayId(int id) {
@@ -175,6 +189,11 @@ public class FootwaySegment {
                 jsonObject.put("surface", this.surface);
             } catch (JSONException e) {}
         }
+        if (this.wayClass > -1) {
+            try {
+                jsonObject.put("way_class", this.wayClass);
+            } catch (JSONException e) {}
+        }
         if (this.wayId > -1) {
             try {
                 jsonObject.put("way_id", this.wayId);
@@ -183,4 +202,20 @@ public class FootwaySegment {
         return jsonObject;
     }
 
+	@Override public int hashCode() {
+        return this.wayId;
+    }
+
+	@Override public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (!(obj instanceof FootwaySegment))
+			return false;
+		FootwaySegment other = (FootwaySegment) obj;
+        if (this.wayId == other.getWayId())
+            return true;
+        return false;
+    }
 }

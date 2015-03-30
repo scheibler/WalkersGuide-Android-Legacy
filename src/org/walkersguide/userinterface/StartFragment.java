@@ -3,8 +3,11 @@ package org.walkersguide.userinterface;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.Writer;
+import java.util.ArrayList;
 import java.util.Locale;
 
 import org.json.JSONArray;
@@ -17,15 +20,14 @@ import org.walkersguide.routeobjects.FootwaySegment;
 import org.walkersguide.routeobjects.POIPoint;
 import org.walkersguide.routeobjects.Point;
 import org.walkersguide.routeobjects.RouteObjectWrapper;
+import org.walkersguide.sensors.PositionManager;
 import org.walkersguide.utils.AddressManager;
 import org.walkersguide.utils.DataDownloader;
 import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.KeyboardManager;
 import org.walkersguide.utils.ObjectParser;
-import org.walkersguide.utils.PositionManager;
 import org.walkersguide.utils.Route;
 import org.walkersguide.utils.SettingsManager;
-import org.walkersguide.utils.SourceRoute;
 
 import android.app.Activity;
 import android.app.Dialog;
@@ -35,19 +37,20 @@ import android.content.DialogInterface;
 import android.content.DialogInterface.OnKeyListener;
 import android.content.Intent;
 import android.location.Location;
-import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Vibrator;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewGroup.MarginLayoutParams;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
 import android.widget.RelativeLayout;
@@ -63,7 +66,9 @@ public class StartFragment extends Fragment {
         public void switchToOtherFragment(String fragmentName);
     }
 
+    private static final int ROUTEIMPORT = 1;
     private static final int TRANSPORTROUTELOADED = 2;
+    private int webserverInterfaceVersion;
     private MessageFromStartFragmentListener mSFListener;
     private Globals globalData;
     private DataDownloader downloader, routeDownloader;
@@ -71,12 +76,13 @@ public class StartFragment extends Fragment {
     private PositionManager positionManager;
     private AddressManager addressManager;
     private KeyboardManager keyboardManager;
-    private SourceRoute sourceRoute;
-    private Point currentLocation;
+    private Route sourceRoute;
+    private Point currentLocation, locationSinceLastFullUpdate;
     private String locationStatus;
     private RelativeLayout mainLayout;
     private LinearLayout routeLayout;
     private Dialog dialog;
+    private Toast messageToast;
     private Handler progressHandler;
     private ProgressUpdater progressUpdater;
     private Vibrator vibrator;
@@ -101,6 +107,7 @@ public class StartFragment extends Fragment {
         }
 
         // check if the client uses no old server interface
+        webserverInterfaceVersion = 0;
         DataDownloader downloader = new DataDownloader(getActivity());
         downloader.setDataDownloadListener(new VersionDownloadListener() );
         downloader.execute( "get",
@@ -122,6 +129,7 @@ public class StartFragment extends Fragment {
 
     @Override public void onCreate(Bundle savedInstanceState) {
     	super.onCreate(savedInstanceState);
+        messageToast = Toast.makeText(getActivity(), "", Toast.LENGTH_SHORT);
         if (globalData == null) {
             globalData = ((Globals) getActivity().getApplicationContext());
         }
@@ -130,7 +138,7 @@ public class StartFragment extends Fragment {
                 && settingsManager.loadSourceRoutesFromHistory().size() > 0) {
             this.sourceRoute = settingsManager.loadSourceRoutesFromHistory().get(0);
         } else {
-            this.sourceRoute = new SourceRoute();
+            this.sourceRoute = new Route();
         }
         settingsManager.setRouteRequest(sourceRoute);
         locationStatus = "";
@@ -174,7 +182,7 @@ public class StartFragment extends Fragment {
                 if ((Integer) buttonStartRouting.getTag() == 0) {
                     queryFootwayRoute();
                 } else {
-                    routeDownloader.cancelDownloadProcess();
+                    cancelRouteDownloadProcess();
                 }
             }
         });
@@ -185,6 +193,11 @@ public class StartFragment extends Fragment {
 
     public void queryFootwayRoute() {
         JSONObject requestJson = new JSONObject();
+        // check webserver interface version
+        if (webserverInterfaceVersion > settingsManager.getInterfaceVersion()) {
+            showOldWebserverInterfaceVersionDialog();
+            return;
+        }
         // check if source route has empty objects and get the number of public transport segments
         int index = 0;
         int numberOfTransportSegments = 0;
@@ -219,11 +232,17 @@ public class StartFragment extends Fragment {
             return;
         }
         // options
+        ArrayList<Integer> blockedWayIds = new ArrayList<Integer>();
+        for (FootwaySegment footway : settingsManager.loadBlockedWays())
+            blockedWayIds.add(footway.getWayId());
         JSONObject optionsJson = new JSONObject();
         try {
-            optionsJson.put("number_of_possible_routes", 6);
+            optionsJson.put("number_of_possible_routes", 3);
             optionsJson.put("route_factor", settingsManager.getRouteFactor());
+            optionsJson.put("allowed_way_classes", new JSONArray(settingsManager.getRoutingWayClasses()));
             optionsJson.put("language", Locale.getDefault().getLanguage());
+            optionsJson.put("session_id", globalData.getSessionId());
+            optionsJson.put("blocked_ways", TextUtils.join(",", blockedWayIds));
         } catch (JSONException e) {
             Intent intent = new Intent(getActivity(), DialogActivity.class);
             intent.putExtra("message",
@@ -294,6 +313,22 @@ public class StartFragment extends Fragment {
         Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
         buttonStartRouting.setTag(1);
         buttonStartRouting.setText(getResources().getString(R.string.buttonStartRoutingClicked));
+    }
+
+    private void cancelRouteDownloadProcess() {
+        routeDownloader.cancelDownloadProcess();
+        JSONObject requestJson = new JSONObject();
+        try {
+            requestJson.put("language", Locale.getDefault().getLanguage());
+            requestJson.put("session_id", globalData.getSessionId());
+        } catch (JSONException e) {
+            return;
+        }
+        routeDownloader = new DataDownloader(getActivity());
+        routeDownloader.setDataDownloadListener(new CanceledRequestDownloadListener() );
+        routeDownloader.execute( "post",
+                globalData.getSettingsManagerInstance().getServerPath() + "/cancel_request",
+                requestJson.toString() );
     }
 
     public void updateRouteRequest() {
@@ -610,72 +645,77 @@ public class StartFragment extends Fragment {
             dialogLayout.addView(buttonDeleteIntermediatePoint);
         }
 
-        // route object details
-        Button buttonObjectDetails = new Button(getActivity());
-        buttonObjectDetails.setLayoutParams(lp);
-        buttonObjectDetails.setId(objectIndex);
-        buttonObjectDetails.setText(getResources().getString(R.string.buttonRouteObjectDetails));
-        buttonObjectDetails.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View view) {
-                int index = view.getId();
-                if (sourceRoute.getRouteObjectAtIndex(index).isEmpty()) {
-                    Intent intent = new Intent(getActivity(), DialogActivity.class);
-                    if (index == 0) {
-                        intent.putExtra("message", getResources().getString(R.string.messageEmptyStartPoint));
-                    } else if (index == sourceRoute.getSize()-1) {
-                        intent.putExtra("message", getResources().getString(R.string.messageEmptyDestinationPoint));
-                    } else {
-                        intent.putExtra("message", getResources().getString(R.string.messageEmptyIntermediatePoint));
-                    }
-                    startActivity(intent);
-                } else {
+        if(currentLocation != null && ! object.isEmpty()) {
+            // route object details
+            Button buttonObjectDetails = new Button(getActivity());
+            buttonObjectDetails.setLayoutParams(lp);
+            buttonObjectDetails.setId(objectIndex);
+            buttonObjectDetails.setText(getResources().getString(R.string.buttonRouteObjectDetails));
+            buttonObjectDetails.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
                     Intent intent = new Intent(getActivity(), RouteObjectDetailsActivity.class);
-                    intent.putExtra("route_object", sourceRoute.getRouteObjectAtIndex(index).toJson().toString());
+                    intent.putExtra("route_object",
+                        sourceRoute.getRouteObjectAtIndex(view.getId()).toJson().toString());
                     startActivity(intent);
+                    dialog.dismiss();
                 }
-                dialog.dismiss();
-            }
-        });
-        dialogLayout.addView(buttonObjectDetails);
+            });
+            dialogLayout.addView(buttonObjectDetails);
 
-        // to favorites
-        Button buttonToFavorites = new Button(getActivity());
-        buttonToFavorites.setLayoutParams(lp);
-        buttonToFavorites.setId(objectIndex);
-        if (settingsManager.favoritesContains(object)) {
-            buttonToFavorites.setText(getResources().getString(R.string.buttonToFavoritesClicked));
-        } else {
-            buttonToFavorites.setText(getResources().getString(R.string.buttonToFavorites));
-        }
-        buttonToFavorites.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View view) {
-                int index = view.getId();
-                RouteObjectWrapper object = sourceRoute.getRouteObjectAtIndex(view.getId());
-                if (object.isEmpty()) {
-                    Intent intent = new Intent(getActivity(), DialogActivity.class);
-                    if (index == 0) {
-                        intent.putExtra("message", getResources().getString(R.string.messageEmptyStartPoint));
-                    } else if (index == sourceRoute.getSize()-1) {
-                        intent.putExtra("message", getResources().getString(R.string.messageEmptyDestinationPoint));
+            // simulation
+            Button buttonSimulation = new Button(getActivity());
+            buttonSimulation.setLayoutParams(lp);
+            buttonSimulation.setId(objectIndex);
+            if ((currentLocation.distanceTo(object.getPoint()) == 0) && (positionManager.getStatus() == PositionManager.Status.SIMULATION)) {
+                buttonSimulation.setText(getResources().getString(R.string.buttonStopSimulation));
+            } else {
+                buttonSimulation.setText(getResources().getString(R.string.buttonPointSimulation));
+            }
+            buttonSimulation.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
+                    RouteObjectWrapper object = sourceRoute.getRouteObjectAtIndex(view.getId());
+                    if ((currentLocation.distanceTo(object.getPoint()) == 0) && (positionManager.getStatus() == PositionManager.Status.SIMULATION)) {
+                        positionManager.changeStatus(PositionManager.Status.GPS, null);
+                        messageToast.setText(
+                            getResources().getString(R.string.messageSimulationStopped));
                     } else {
-                        intent.putExtra("message", getResources().getString(R.string.messageEmptyIntermediatePoint));
+                        positionManager.changeStatus(PositionManager.Status.SIMULATION, object.getPoint());
+                        messageToast.setText(
+                            getResources().getString(R.string.messagePositionSimulated));
                     }
-                    startActivity(intent);
-                } else {
+                    messageToast.show();
+                    dialog.dismiss();
+                }
+            });
+            dialogLayout.addView(buttonSimulation);
+
+            // to favorites
+            Button buttonToFavorites = new Button(getActivity());
+            buttonToFavorites.setLayoutParams(lp);
+            buttonToFavorites.setId(objectIndex);
+            if (settingsManager.favoritesContains(object)) {
+                buttonToFavorites.setText(getResources().getString(R.string.buttonToFavoritesClicked));
+            } else {
+                buttonToFavorites.setText(getResources().getString(R.string.buttonToFavorites));
+            }
+            buttonToFavorites.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
+                    RouteObjectWrapper object = sourceRoute.getRouteObjectAtIndex(view.getId());
                     if (settingsManager.favoritesContains(object)) {
                         settingsManager.removePointFromFavorites(object);
-                        Toast.makeText(getActivity(), getResources().getString(R.string.messageRemovedFromFavorites),
-                                Toast.LENGTH_LONG).show();
+                        messageToast.setText(
+                            getResources().getString(R.string.messageRemovedFromFavorites));
                     } else {
                         settingsManager.addPointToFavorites(object);
-                        Toast.makeText(getActivity(), getResources().getString(R.string.messageAddedToFavorites),
-                                Toast.LENGTH_LONG).show();
+                        messageToast.setText(
+                            getResources().getString(R.string.messageAddedToFavorites));
                     }
+                    messageToast.show();
+                    dialog.dismiss();
                 }
-                dialog.dismiss();
-            }
-        });
-        dialogLayout.addView(buttonToFavorites);
+            });
+            dialogLayout.addView(buttonToFavorites);
+        }
 
         // new object
         label = new TextView(getActivity());
@@ -687,11 +727,6 @@ public class StartFragment extends Fragment {
         if (objectIndex == 0) {
             Button buttonCurrentLocation = new Button(getActivity());
             buttonCurrentLocation.setLayoutParams(lp);
-            /*if (positionManager.getStatus() != PositionManager.Status.GPS) {
-                buttonCurrentLocation.setText(getResources().getString(R.string.buttonCurrentLocation));
-            } else {
-                buttonCurrentLocation.setText(getResources().getString(R.string.buttonCurrentLocationClicked));
-            }*/
             buttonCurrentLocation.setText(getResources().getString(R.string.buttonCurrentLocation));
             buttonCurrentLocation.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View view) {
@@ -839,8 +874,9 @@ public class StartFragment extends Fragment {
 
     public void showRouteDialog() {
         dialog = new Dialog(getActivity());
-        dialog.setContentView(R.layout.dialog_scrollable_empty);
+        dialog.setContentView(R.layout.dialog_scrollable_with_buttons);
         dialog.setCanceledOnTouchOutside(false);
+        LinearLayout dialogTopLayout = (LinearLayout) dialog.findViewById(R.id.linearLayoutTop);
         LinearLayout dialogLayout = (LinearLayout) dialog.findViewById(R.id.linearLayoutMain);
         LayoutParams lp = new LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -849,10 +885,57 @@ public class StartFragment extends Fragment {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT );
         ((MarginLayoutParams) lpMarginTop).topMargin =
                 Math.round(15 * getActivity().getResources().getDisplayMetrics().density);
-        // heading
+
+        // new route
         TextView label = new TextView(getActivity());
         label.setLayoutParams(lp);
-        label.setText(getResources().getString(R.string.labelRouteDialogHeading));
+        label.setText(getResources().getString(R.string.labelRouteDialogNewRoute));
+        dialogLayout.addView(label);
+
+        Button buttonNewEmptyRoute = new Button(getActivity());
+        buttonNewEmptyRoute.setLayoutParams(lp);
+        buttonNewEmptyRoute.setText(getResources().getString(R.string.buttonNewEmptyRoute));
+        buttonNewEmptyRoute.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                settingsManager.addToTemporaryStartFragmentSettings("currentPositionActive", 0);
+                sourceRoute = new Route();
+                updateRouteRequest();
+                dialog.dismiss();
+            }
+        });
+        dialogLayout.addView(buttonNewEmptyRoute);
+
+        Button buttonNewRouteFromHistory = new Button(getActivity());
+        buttonNewRouteFromHistory.setLayoutParams(lp);
+        buttonNewRouteFromHistory.setText(getResources().getString(R.string.buttonNewRouteFromHistory));
+        buttonNewRouteFromHistory.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                Intent activityEnterHistory = new Intent(getActivity(), HistoryActivity.class);
+                activityEnterHistory.putExtra("subView", "ROUTES");
+                activityEnterHistory.putExtra("showButtons", 0);
+                activityEnterHistory.putExtra("route", 1);
+                startActivity(activityEnterHistory);
+                dialog.dismiss();
+            }
+        });
+        dialogLayout.addView(buttonNewRouteFromHistory);
+
+        Button buttonNewRouteFromFileImport = new Button(getActivity());
+        buttonNewRouteFromFileImport.setLayoutParams(lp);
+        buttonNewRouteFromFileImport.setText(getResources().getString(R.string.buttonNewRouteFromFileImport));
+        buttonNewRouteFromFileImport.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                Intent intent = new Intent(getActivity(), RouteImportActivity.class);
+                startActivityForResult(intent, ROUTEIMPORT);
+                dialog.dismiss();
+            }
+        });
+        dialogLayout.addView(buttonNewRouteFromFileImport);
+
+        // additional actions heading
+        label = new TextView(getActivity());
+        label.setLayoutParams(lpMarginTop);
+        label.setText(getResources().getString(R.string.labelRouteDialogAdditionalActions));
         dialogLayout.addView(label);
 
         // switch start and destination
@@ -878,27 +961,61 @@ public class StartFragment extends Fragment {
         });
         dialogLayout.addView(buttonSwitchStartAndDestination);
 
+        Button buttonOpenBlockedWays = new Button(getActivity());
+        buttonOpenBlockedWays.setLayoutParams(lp);
+        buttonOpenBlockedWays.setText(getResources().getString(R.string.buttonOpenBlockedWays));
+        buttonOpenBlockedWays.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                Intent activityEnterHistory = new Intent(getActivity(), HistoryActivity.class);
+                activityEnterHistory.putExtra("subView", "BLOCKEDWAYS");
+                activityEnterHistory.putExtra("showButtons", 0);
+                startActivity(activityEnterHistory);
+                dialog.dismiss();
+            }
+        });
+        dialogLayout.addView(buttonOpenBlockedWays);
+
+        Button buttonExportRouteToFile = new Button(getActivity());
+        buttonExportRouteToFile.setLayoutParams(lp);
+        buttonExportRouteToFile.setText(getResources().getString(R.string.buttonExportRouteToFile));
+        buttonExportRouteToFile.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                String fileName = String.format("%s/%s.--.%s.route",
+                    settingsManager.getProgramImportFolder(),
+                    sourceRoute.getRouteObjectAtIndex(0).getPoint().getName().replace(" ","."),
+                    sourceRoute.getRouteObjectAtIndex(sourceRoute.getSize()-1).getPoint().getName().replace(" ",".") );
+                try {
+                    Writer fw = new FileWriter(fileName, false);
+                    fw.write(sourceRoute.toJson().toString());
+                    fw.close();
+                } catch (IOException e) {
+                    Intent intent = new Intent(getActivity(), DialogActivity.class);
+                    intent.putExtra("message",
+                            getResources().getString(R.string.messageRouteExportError) );
+                    startActivity(intent);
+                    dialog.dismiss();
+                    return;
+                }
+                Intent intent = new Intent(getActivity(), DialogActivity.class);
+                intent.putExtra("message",
+                        getResources().getString(R.string.messageRouteExportSuccessful) );
+                startActivity(intent);
+                dialog.dismiss();
+            }
+        });
+        dialogLayout.addView(buttonExportRouteToFile);
+
         // route factor
         label = new TextView(getActivity());
-        label.setLayoutParams(lp);
+        label.setLayoutParams(lpMarginTop);
         label.setText(getResources().getString(R.string.labelSettingsActivityRouteFactor));
         dialogLayout.addView(label);
-
         Spinner spinnerRouteFactor = new Spinner(getActivity());
+        spinnerRouteFactor.setId(0);
         ArrayAdapter<Double> adapter = new ArrayAdapter<Double>(getActivity(),
                 android.R.layout.simple_spinner_item, settingsManager.getRouteFactorArray());
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerRouteFactor.setAdapter(adapter);
-        spinnerRouteFactor.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
-                double routeFactor = (Double) parent.getItemAtPosition(pos);
-                if (routeFactor != settingsManager.getRouteFactor()) {
-                    settingsManager.setRouteFactor(routeFactor);
-                    dialog.dismiss();
-                }
-            }
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
         // select choosen route factor
         int index = adapter.getPosition(settingsManager.getRouteFactor());
         if (index == -1) {
@@ -910,40 +1027,139 @@ public class StartFragment extends Fragment {
         spinnerRouteFactor.setSelection(index);
         dialogLayout.addView(spinnerRouteFactor);
 
-        // new route
+        // way class checkboxes
         label = new TextView(getActivity());
         label.setLayoutParams(lpMarginTop);
-        label.setText(getResources().getString(R.string.labelRouteDialogNewRoute));
+        label.setText(getResources().getString(R.string.labelRouteDialogWayClasses));
         dialogLayout.addView(label);
+        ArrayList<String> routingWayClasses = settingsManager.getRoutingWayClasses();
+        CheckBox checkBoxBigStreets = new CheckBox(getActivity());
+        checkBoxBigStreets.setId(1);
+        checkBoxBigStreets.setLayoutParams(lp);
+        checkBoxBigStreets.setText(getResources().getString(R.string.checkBoxBigStreets));
+        if (routingWayClasses.contains("big_streets"))
+            checkBoxBigStreets.setChecked(true);
+        else
+            checkBoxBigStreets.setChecked(false);
+        dialogLayout.addView(checkBoxBigStreets);
+        CheckBox checkBoxSmallStreets = new CheckBox(getActivity());
+        checkBoxSmallStreets.setId(2);
+        checkBoxSmallStreets.setLayoutParams(lp);
+        checkBoxSmallStreets.setText(getResources().getString(R.string.checkBoxSmallStreets));
+        if (routingWayClasses.contains("small_streets"))
+            checkBoxSmallStreets.setChecked(true);
+        else
+            checkBoxSmallStreets.setChecked(false);
+        dialogLayout.addView(checkBoxSmallStreets);
+        CheckBox checkBoxPavedWays = new CheckBox(getActivity());
+        checkBoxPavedWays.setId(3);
+        checkBoxPavedWays.setLayoutParams(lp);
+        checkBoxPavedWays.setText(getResources().getString(R.string.checkBoxPavedWays));
+        if (routingWayClasses.contains("paved_ways"))
+            checkBoxPavedWays.setChecked(true);
+        else
+            checkBoxPavedWays.setChecked(false);
+        dialogLayout.addView(checkBoxPavedWays);
+        CheckBox checkBoxUnpavedWays = new CheckBox(getActivity());
+        checkBoxUnpavedWays.setId(4);
+        checkBoxUnpavedWays.setLayoutParams(lp);
+        checkBoxUnpavedWays.setText(getResources().getString(R.string.checkBoxUnpavedWays));
+        if (routingWayClasses.contains("unpaved_ways"))
+            checkBoxUnpavedWays.setChecked(true);
+        else
+            checkBoxUnpavedWays.setChecked(false);
+        dialogLayout.addView(checkBoxUnpavedWays);
+        CheckBox checkBoxUnclassifiedWays = new CheckBox(getActivity());
+        checkBoxUnclassifiedWays.setId(5);
+        checkBoxUnclassifiedWays.setLayoutParams(lp);
+        checkBoxUnclassifiedWays.setText(getResources().getString(R.string.checkBoxUnclassifiedWays));
+        if (routingWayClasses.contains("unclassified_ways"))
+            checkBoxUnclassifiedWays.setChecked(true);
+        else
+            checkBoxUnclassifiedWays.setChecked(false);
+        dialogLayout.addView(checkBoxUnclassifiedWays);
+        CheckBox checkBoxSteps = new CheckBox(getActivity());
+        checkBoxSteps.setId(6);
+        checkBoxSteps.setLayoutParams(lp);
+        checkBoxSteps.setText(getResources().getString(R.string.checkBoxSteps));
+        if (routingWayClasses.contains("steps"))
+            checkBoxSteps.setChecked(true);
+        else
+            checkBoxSteps.setChecked(false);
+        dialogLayout.addView(checkBoxSteps);
 
-        Button buttonNewEmptyRoute = new Button(getActivity());
-        buttonNewEmptyRoute.setLayoutParams(lp);
-        buttonNewEmptyRoute.setText(getResources().getString(R.string.buttonNewEmptyRoute));
-        buttonNewEmptyRoute.setOnClickListener(new View.OnClickListener() {
+        // ok
+        Button buttonOK = (Button) dialogTopLayout.findViewById(R.id.buttonOK);
+        buttonOK.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
-                settingsManager.addToTemporaryStartFragmentSettings("currentPositionActive", 0);
-                sourceRoute = new SourceRoute();
-                updateRouteRequest();
+                LinearLayout dialogLayout = (LinearLayout) dialog.findViewById(R.id.linearLayoutMain);
+                // indirection factor
+                Spinner spinnerRouteFactor = (Spinner) dialogLayout.findViewById(0);
+                double routeFactor = (Double) spinnerRouteFactor.getSelectedItem();
+                settingsManager.setRouteFactor(routeFactor);
+                // way classes
+                ArrayList<String> routingWayClasses = new ArrayList<String>();
+                CheckBox checkBoxBigStreets = (CheckBox) dialogLayout.findViewById(1);
+                if (checkBoxBigStreets.isChecked())
+                    routingWayClasses.add("big_streets");
+                CheckBox checkBoxSmallStreets = (CheckBox) dialogLayout.findViewById(2);
+                if (checkBoxSmallStreets.isChecked())
+                    routingWayClasses.add("small_streets");
+                CheckBox checkBoxPavedWays = (CheckBox) dialogLayout.findViewById(3);
+                if (checkBoxPavedWays.isChecked())
+                    routingWayClasses.add("paved_ways");
+                CheckBox checkBoxUnpavedWays = (CheckBox) dialogLayout.findViewById(4);
+                if (checkBoxUnpavedWays.isChecked())
+                    routingWayClasses.add("unpaved_ways");
+                CheckBox checkBoxUnclassifiedWays = (CheckBox) dialogLayout.findViewById(5);
+                if (checkBoxUnclassifiedWays.isChecked())
+                    routingWayClasses.add("unclassified_ways");
+                CheckBox checkBoxSteps = (CheckBox) dialogLayout.findViewById(6);
+                if (checkBoxSteps.isChecked())
+                    routingWayClasses.add("steps");
+                settingsManager.setRoutingWayClasses(routingWayClasses);
                 dialog.dismiss();
             }
         });
-        dialogLayout.addView(buttonNewEmptyRoute);
 
-        Button buttonNewRouteFromHistory = new Button(getActivity());
-        buttonNewRouteFromHistory.setLayoutParams(lp);
-        buttonNewRouteFromHistory.setText(getResources().getString(R.string.buttonNewRouteFromHistory));
-        buttonNewRouteFromHistory.setOnClickListener(new View.OnClickListener() {
+        // cancel
+        Button buttonCancel = (Button) dialogTopLayout.findViewById(R.id.buttonCancel);
+        buttonCancel.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
-                Intent activityEnterHistory = new Intent(getActivity(), HistoryActivity.class);
-                activityEnterHistory.putExtra("subView", "ROUTES");
-                activityEnterHistory.putExtra("showButtons", 0);
-                activityEnterHistory.putExtra("route", 1);
-                startActivity(activityEnterHistory);
                 dialog.dismiss();
             }
         });
-        dialogLayout.addView(buttonNewRouteFromHistory);
+        dialog.show();
+    }
 
+    public void showOldWebserverInterfaceVersionDialog() {
+        dialog = new Dialog(getActivity());
+        dialog.setContentView(R.layout.dialog_scrollable_empty);
+        dialog.setCanceledOnTouchOutside(false);
+        LinearLayout dialogLayout = (LinearLayout) dialog.findViewById(R.id.linearLayoutMain);
+        LayoutParams lp = new LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT );
+        // heading
+        TextView label = new TextView(getActivity());
+        label.setLayoutParams(lp);
+        label.setText(getResources().getString(R.string.messageVersionRequestAppTooOld));
+        dialogLayout.addView(label);
+        Button buttonDownloadNewAppVersion = new Button(getActivity());
+        buttonDownloadNewAppVersion.setLayoutParams(lp);
+        buttonDownloadNewAppVersion.setText(getResources().getString(R.string.buttonDownloadNewAppVersion));
+        buttonDownloadNewAppVersion.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                String downloadURL = "http://walkersguide.org";
+                if (Locale.getDefault().getLanguage().equals("de"))
+                    downloadURL += "/de/downloads/";
+                else
+                    downloadURL += "/en/downloads/";
+                startActivity(new Intent(Intent.ACTION_VIEW).setData(Uri.parse(downloadURL)));
+                dialog.dismiss();
+            }
+        });
+        dialogLayout.addView(buttonDownloadNewAppVersion);
         Button buttonCancel = new Button(getActivity());
         buttonCancel.setLayoutParams(lp);
         buttonCancel.setText(getResources().getString(R.string.dialogCancel));
@@ -958,11 +1174,11 @@ public class StartFragment extends Fragment {
 
     @Override public void onPause() {
         super.onPause();
-        positionManager.stopGPS();
+        positionManager.setPositionListener(null);
         progressHandler.removeCallbacks(progressUpdater);
         settingsManager.setRouteRequest(sourceRoute);
         if (routeDownloader != null) {
-            routeDownloader.cancelDownloadProcess();
+            cancelRouteDownloadProcess();
         }
     }
 
@@ -988,16 +1204,13 @@ public class StartFragment extends Fragment {
         addressManager.setAddressListener(new MyAddressListener());
         keyboardManager.setKeyboardListener(null);
         positionManager.setPositionListener(new MyPositionListener());
-        positionManager.resumeGPS();
-        if (positionManager.getStatus() == PositionManager.Status.SIMULATION) {
-            positionManager.getLastKnownLocation();
-        }
         updateRouteRequest();
     }
 
     @Override public void onActivityResult(int requestCode, int resultCode, Intent data){
         // See which child activity is calling us back.
         switch (requestCode) {
+            case ROUTEIMPORT:
             case TRANSPORTROUTELOADED:
                 // This is the standard resultCode that is sent back if the
                 // activity crashed or didn't doesn't supply an explicit result.
@@ -1052,6 +1265,10 @@ public class StartFragment extends Fragment {
             }
             currentLocation = new Point(
                     getResources().getString(R.string.locationNameCurrentPosition), location);
+            if (locationSinceLastFullUpdate == null)
+                locationSinceLastFullUpdate = currentLocation;
+            // if the user chooses the current position as route starting point, update that point
+            // as fast as you get a new location object
             if (settingsManager.getValueFromTemporaryStartFragmentSettings("currentPositionActive") != null
                     && settingsManager.getValueFromTemporaryStartFragmentSettings("currentPositionActive") > 0) {
                 int accuracy = (int) Math.round( location.getAccuracy() );
@@ -1073,6 +1290,13 @@ public class StartFragment extends Fragment {
                 addressManager.updateAddress(sourceRoute.getRouteObjectAtIndex(index).getPoint());
                 updateCurrentLocationObjectOnly();
             }
+            // update distance of whole source route from time to time
+            // if we would do that constantly, it would destroy the source route view in the start tab
+            if (currentLocation.distanceTo(locationSinceLastFullUpdate) > 50
+                    && location.getSpeed() < 3.0) {
+                locationSinceLastFullUpdate = currentLocation;
+                updateRouteRequest();
+            }
         }
 
         public void displayGPSSettingsDialog() {
@@ -1092,7 +1316,7 @@ public class StartFragment extends Fragment {
                     getResources().getString(R.string.locationNameAddressWithAccuracy),
                     address, wayPoint.getAccuracy() );
             sourceRoute.replaceRouteObjectAtIndex(index, new RouteObjectWrapper(
-                        new POIPoint(address, wayPoint.getLocationObject(),
+                        new POIPoint(address, currentLocation.getLocationObject(),
                             getResources().getString(R.string.locationNameAddress)) ));
             updateCurrentLocationObjectOnly();
         }
@@ -1113,12 +1337,9 @@ public class StartFragment extends Fragment {
                 if (jsonObject.has("map_version")) {
                     settingsManager.setMapVersion(jsonObject.getString("map_version"));
                 }
-                double interfaceVersion = jsonObject.getDouble("interface");
-                if (interfaceVersion > settingsManager.getInterfaceVersion()) {
-                    Intent intent = new Intent(getActivity(), DialogActivity.class);
-                    intent.putExtra("message",
-                            getResources().getString(R.string.messageVersionRequestAppTooOld) );
-                    startActivity(intent);
+                webserverInterfaceVersion = jsonObject.getInt("interface");
+                if (webserverInterfaceVersion > settingsManager.getInterfaceVersion()) {
+                    showOldWebserverInterfaceVersionDialog();
                 }
             } catch (JSONException e) {
                 Intent intent = new Intent(getActivity(), DialogActivity.class);
@@ -1172,10 +1393,9 @@ public class StartFragment extends Fragment {
             buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
             try {
                 Route route = ObjectParser.parseSingleRoute(jsonObject);
-                MediaPlayer mp = MediaPlayer.create(getActivity(), R.raw.beep);
-                mp.start();
                 globalData.setValue("route", route);
                 globalData.setValue("newRoute", true);
+                vibrator.vibrate(300);
                 mSFListener.switchToOtherFragment("router");
             } catch (RouteParsingException e) {
                 Intent intent = new Intent(getActivity(), DialogActivity.class);
@@ -1241,6 +1461,12 @@ public class StartFragment extends Fragment {
             buttonStartRouting.setTag(0);
             buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
         }
+    }
+
+    private class CanceledRequestDownloadListener implements DataDownloader.DataDownloadListener {
+        @Override public void dataDownloadedSuccessfully(JSONObject jsonObject) {}
+        @Override public void dataDownloadFailed(String error) {}
+        @Override public void dataDownloadCanceled() {}
     }
 
     private class ProgressUpdater implements Runnable {

@@ -1,9 +1,9 @@
 package org.walkersguide.userinterface;
 
 import org.walkersguide.R;
+import org.walkersguide.sensors.PositionManager;
 import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.KeyboardManager;
-import org.walkersguide.utils.PositionManager;
 
 import android.app.Activity;
 import android.app.Fragment;
@@ -43,7 +43,7 @@ public class MiscFragment extends Fragment {
         Button buttonDisableSimulation = (Button) mainLayout.findViewById(R.id.buttonDisableSimulation);
         buttonDisableSimulation.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
-                positionManager.changeStatus(PositionManager.Status.DISABLED, null);
+                positionManager.changeStatus(PositionManager.Status.GPS, null);
                 updateUserInterface();
             }
         });
@@ -71,6 +71,16 @@ public class MiscFragment extends Fragment {
                 Intent activityEnterHistory = new Intent(getActivity(), HistoryActivity.class);
                 activityEnterHistory.putExtra("subView", "ROUTEPOINTS");
                 activityEnterHistory.putExtra("showButtons", 1);
+                startActivity(activityEnterHistory);
+            }
+        });
+
+        Button buttonOpenBlockedWays = (Button) mainLayout.findViewById(R.id.buttonOpenBlockedWays);
+        buttonOpenBlockedWays.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                Intent activityEnterHistory = new Intent(getActivity(), HistoryActivity.class);
+                activityEnterHistory.putExtra("subView", "BLOCKEDWAYS");
+                activityEnterHistory.putExtra("showButtons", 0);
                 startActivity(activityEnterHistory);
             }
         });

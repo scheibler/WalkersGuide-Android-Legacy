@@ -1,6 +1,8 @@
 package org.walkersguide.userinterface;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 
 import org.walkersguide.MainActivity;
 import org.walkersguide.R;
@@ -8,16 +10,16 @@ import org.walkersguide.routeobjects.FootwaySegment;
 import org.walkersguide.routeobjects.IntersectionPoint;
 import org.walkersguide.routeobjects.Point;
 import org.walkersguide.routeobjects.RouteObjectWrapper;
+import org.walkersguide.routeobjects.TransportSegment;
+import org.walkersguide.sensors.PositionManager;
+import org.walkersguide.sensors.SensorsManager;
 import org.walkersguide.utils.AddressManager;
-import org.walkersguide.utils.CompassCalibrationValidator;
 import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.HelperFunctions;
 import org.walkersguide.utils.KeyboardManager;
 import org.walkersguide.utils.POIManager;
 import org.walkersguide.utils.POIPreset;
-import org.walkersguide.utils.PositionManager;
 import org.walkersguide.utils.Route;
-import org.walkersguide.utils.SensorsManager;
 import org.walkersguide.utils.SettingsManager;
 
 import android.app.Activity;
@@ -28,13 +30,15 @@ import android.content.Intent;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Vibrator;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.AccessibilityDelegate;
-import android.view.View.OnFocusChangeListener;
 import android.view.ViewGroup;
+import android.view.ViewGroup.MarginLayoutParams;
 import android.view.accessibility.AccessibilityEvent;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -54,7 +58,12 @@ public class RouterFragment extends Fragment {
         public void switchToOtherFragment(String fragmentName);
     }
 
+    private enum UIElement {
+        DEFAULT, DISTANCE, DETAILS
+    }
+
     private MessageFromRouterFragmentListener mRouterFListener;
+    private AccessibilityDelegate defaultAccessibilityDelegate;
     private static final int OBJECTDETAILS = 1;
     private Globals globalData;
     private LinearLayout mainLayout;
@@ -67,12 +76,12 @@ public class RouterFragment extends Fragment {
     private SensorsManager sensorsManager;
     private AddressManager addressManager;
     private KeyboardManager keyboardManager;
-    private CompassCalibrationValidator compassCalibrationValidator;
+    private Vibrator vibrator;
     private Point currentLocation, lastSpokenLocation;
-    private int currentCompassValue;
+    private int currentCompassValue, lastSpokenCompassValue;
     private String currentAddress, gpsStatusText;
     private Route route;
-    private boolean pointFoundBearing, pointFoundDistance, labelDistanceFocused;
+    private boolean pointFoundBearing, pointFoundDistance;
     private int oldBearingValue;
     private int currentPointNumber;
     private ArrayList<Point> processedPOIList;
@@ -80,6 +89,8 @@ public class RouterFragment extends Fragment {
     private Handler mHandler, gpsStatusHandler;
     private RouteSimulator routeSimulator;
     private GPSStatusUpdater gpsStatusUpdater;
+    private UIElement focusedElement;
+    private IntersectionPoint.IntersectionWay lastSpokenWay;
 
     @Override public void onAttach(Activity activity) {
         super.onAttach(activity);
@@ -91,13 +102,21 @@ public class RouterFragment extends Fragment {
         positionManager = globalData.getPositionManagerInstance();
         sensorsManager = globalData.getSensorsManagerInstance();
         addressManager = globalData.getAddressManagerInstance();
-        compassCalibrationValidator = globalData.getCompasscalibrationvalidatorInstance();
         keyboardManager = globalData.getKeyboardManagerInstance();
+        vibrator = (Vibrator) getActivity().getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
         processedPOIList = new ArrayList<Point>();
         mHandler = new Handler();
         routeSimulator = new RouteSimulator();
         gpsStatusHandler = new Handler();
         gpsStatusUpdater = new GPSStatusUpdater();
+        defaultAccessibilityDelegate = new AccessibilityDelegate() {
+            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
+                super.onPopulateAccessibilityEvent(host, event);
+                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
+                    focusedElement = UIElement.DEFAULT;
+                }
+            }
+        };
         // This makes sure that the container activity has implemented
         // the callback interface. If not, it throws an exception
         try {
@@ -115,8 +134,9 @@ public class RouterFragment extends Fragment {
         oldBearingValue = -1;
         pointFoundBearing = false;
         pointFoundDistance = false;
-        labelDistanceFocused = false;
         numberOfHighSpeeds = 0;
+        focusedElement = UIElement.DEFAULT;
+        lastSpokenWay = null;
     }
 
     @Override public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -130,6 +150,7 @@ public class RouterFragment extends Fragment {
         // main layout
         Button buttonSwitchRouteView = (Button) mainLayout.findViewById(R.id.buttonSwitchRouteView);
         buttonSwitchRouteView.setTag(0);
+        buttonSwitchRouteView.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonSwitchRouteView.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 Button buttonSwitchRouteView = (Button) mainLayout.findViewById(R.id.buttonSwitchRouteView);
@@ -142,16 +163,9 @@ public class RouterFragment extends Fragment {
                 updateUserInterface( );
             }
         });
-        buttonSwitchRouteView.setAccessibilityDelegate(new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    labelDistanceFocused = false;
-                }
-            }
-        });
 
         Spinner spinnerAdditionalOptions = (Spinner) mainLayout.findViewById(R.id.spinnerAdditionalOptions);
+        spinnerAdditionalOptions.setAccessibilityDelegate(defaultAccessibilityDelegate);
         spinnerAdditionalOptions.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                 String oldOption = ((String) parent.getItemAtPosition(
@@ -165,56 +179,33 @@ public class RouterFragment extends Fragment {
             }
             public void onNothingSelected(AdapterView<?> parent) {}
         });
-        spinnerAdditionalOptions.setAccessibilityDelegate(new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    labelDistanceFocused = false;
-                }
-            }
-        });
-        ArrayAdapter<CharSequence> adapterAdditionalOptions = ArrayAdapter.createFromResource(getActivity(),
-                R.array.arrayAdditionalOptionsRF, android.R.layout.simple_spinner_item);
+        ArrayList<CharSequence> listAdditionalOptions = new ArrayList<CharSequence>(Arrays.asList(
+                getResources().getStringArray(R.array.arrayAdditionalOptionsRF) ));
+        AdditionalOptionsAdapter adapterAdditionalOptions = new AdditionalOptionsAdapter(
+                getActivity(), android.R.layout.simple_list_item_1, listAdditionalOptions);
         adapterAdditionalOptions.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerAdditionalOptions.setAdapter(adapterAdditionalOptions);
 
         TextView labelStatus = (TextView) mainLayout.findViewById(R.id.labelStatus);
-        labelStatus.setAccessibilityDelegate(new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    labelDistanceFocused = false;
-                }
-            }
-        });
+        labelStatus.setAccessibilityDelegate(defaultAccessibilityDelegate);
 
         // next point layout
         TextView labelNextSegmentDescription = (TextView) nextPointLayout.findViewById(R.id.labelNextSegmentDescription);
-        labelNextSegmentDescription.setAccessibilityDelegate(new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    labelDistanceFocused = false;
-                }
-            }
-        });
-
+        labelNextSegmentDescription.setAccessibilityDelegate(defaultAccessibilityDelegate);
         TextView labelNextPointDescription = (TextView) nextPointLayout.findViewById(R.id.labelNextPointDescription);
-        labelNextPointDescription.setAccessibilityDelegate(new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    labelDistanceFocused = false;
-                }
-            }
-        });
+        labelNextPointDescription.setAccessibilityDelegate(defaultAccessibilityDelegate);
 
         TextView labelDetailInformation = (TextView) nextPointLayout.findViewById(R.id.labelDetailInformation);
         labelDetailInformation.setAccessibilityDelegate(new AccessibilityDelegate() {
             @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
                 super.onPopulateAccessibilityEvent(host, event);
                 if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    labelDistanceFocused = false;
+                    focusedElement = UIElement.DETAILS;
+                }
+                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_HOVER_ENTER
+                        && focusedElement == UIElement.DETAILS) {
+                    TextView labelDetailInformation = (TextView) nextPointLayout.findViewById(R.id.labelDetailInformation);
+                    labelDetailInformation.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
                 }
             }
         });
@@ -225,62 +216,37 @@ public class RouterFragment extends Fragment {
                 super.onPopulateAccessibilityEvent(host, event);
                 if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
                     lastSpokenLocation = currentLocation;
-                    labelDistanceFocused = true;
+                    focusedElement = UIElement.DISTANCE;
                 }
-            }
-        });
-        labelDistance.setOnFocusChangeListener(new OnFocusChangeListener() {
-            public void onFocusChange(View v,boolean hasFocus) {
-                if (hasFocus) {
-                    lastSpokenLocation = currentLocation;
-                    labelDistanceFocused = true;
-                } else {
-                    labelDistanceFocused = false;
+                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_HOVER_ENTER
+                        && focusedElement == UIElement.DISTANCE) {
+                    TextView labelDistance= (TextView) nextPointLayout.findViewById(R.id.labelDistance);
+                    labelDistance.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
                 }
             }
         });
 
         Button buttonPrevPoint= (Button) nextPointLayout.findViewById(R.id.buttonPrevPoint);
+        buttonPrevPoint.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonPrevPoint.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 previousRoutePoint();
             }
         });
-        buttonPrevPoint.setAccessibilityDelegate(new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    labelDistanceFocused = false;
-                }
-            }
-        });
 
         TextView labelCurrentPoint= (TextView) nextPointLayout.findViewById(R.id.labelCurrentPoint);
-        labelCurrentPoint.setAccessibilityDelegate(new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    labelDistanceFocused = false;
-                }
-            }
-        });
+        labelCurrentPoint.setAccessibilityDelegate(defaultAccessibilityDelegate);
 
         Button buttonNextPoint= (Button) nextPointLayout.findViewById(R.id.buttonNextPoint);
+        buttonNextPoint.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonNextPoint.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 nextRoutePoint();
             }
         });
-        buttonNextPoint.setAccessibilityDelegate(new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    labelDistanceFocused = false;
-                }
-            }
-        });
 
         Button buttonDetails = (Button) nextPointLayout.findViewById(R.id.buttonDetails);
+        buttonDetails.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonDetails.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 if (route == null) {
@@ -305,16 +271,9 @@ public class RouterFragment extends Fragment {
                 startActivityForResult(intent, OBJECTDETAILS);
             }
         });
-        buttonDetails.setAccessibilityDelegate(new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    labelDistanceFocused = false;
-                }
-            }
-        });
 
         Spinner spinnerPresets = (Spinner) nextPointLayout.findViewById(R.id.spinnerPresets);
+        spinnerPresets.setAccessibilityDelegate(defaultAccessibilityDelegate);
         spinnerPresets.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                 int presetId = ((POIPreset) parent.getItemAtPosition(pos)).getId();
@@ -334,14 +293,6 @@ public class RouterFragment extends Fragment {
             }
             public void onNothingSelected(AdapterView<?> parent) {}
         });
-        spinnerPresets.setAccessibilityDelegate(new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    labelDistanceFocused = false;
-                }
-            }
-        });
         ArrayAdapter<POIPreset> adapter = new ArrayAdapter<POIPreset>(getActivity(),
                 android.R.layout.simple_spinner_item, settingsManager.getPOIPresetListWithEmptyPreset());
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -349,6 +300,7 @@ public class RouterFragment extends Fragment {
 
         Button buttonSimulation = (Button) nextPointLayout.findViewById(R.id.buttonSimulation);
         buttonSimulation.setTag(0);
+        buttonSimulation.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonSimulation.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 if (route == null) {
@@ -359,44 +311,32 @@ public class RouterFragment extends Fragment {
                 showSimulationDialog();
             }
         });
-        buttonSimulation.setAccessibilityDelegate(new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    labelDistanceFocused = false;
-                }
-            }
-        });
 
         // route list sub view
         ListView listview = (ListView) routeListLayout.findViewById(R.id.listRouteSegments);
+        listview.setAccessibilityDelegate(defaultAccessibilityDelegate);
         listview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override public void onItemClick(AdapterView<?> parent, final View view,
                         int position, long id) {
-                RouteObjectWrapper object = route.getRouteObjectAtIndex(position);
-                if (object.isEmpty()) {
-                    messageToast.setText(getResources().getString(R.string.messageNoFurtherRoutePoint));
-                    messageToast.show();
-                    return;
-                }
+                RouteObjectWrapper routeObject = (RouteObjectWrapper) parent.getItemAtPosition(position);
                 Intent intent = new Intent(getActivity(), RouteObjectDetailsActivity.class);
-                intent.putExtra("route_object", object.toJson().toString());
+                intent.putExtra("route_object", routeObject.toJson().toString());
                 // try to get way segment after this point
-                RouteObjectWrapper nextSegment = route.getRouteObjectAtIndex( route.getListPosition() + 1);
-                if (nextSegment.getFootwaySegment() != null)
+                try {
+                    RouteObjectWrapper nextSegment = (RouteObjectWrapper) parent.getItemAtPosition(position+1);
                     intent.putExtra("nextSegmentBearing", ((FootwaySegment) nextSegment.getFootwaySegment()).getBearing() );
-                else
+                } catch (IndexOutOfBoundsException e) {
                     intent.putExtra("nextSegmentBearing", -1);
+                } catch (NullPointerException e) {
+                    intent.putExtra("nextSegmentBearing", -1);
+                }
                 startActivityForResult(intent, OBJECTDETAILS);
             }
         });
         listview.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override public boolean onItemLongClick(AdapterView<?> parent, final View view,
                         int position, long id) {
-                route.setListPosition(position);
-                Button buttonSwitchRouteView = (Button) mainLayout.findViewById(R.id.buttonSwitchRouteView);
-                buttonSwitchRouteView.setTag(1);
-                updateUserInterface();
+                showActionsMenuDialog(position);
                 return true;
             }
         });
@@ -514,151 +454,81 @@ public class RouterFragment extends Fragment {
         RouteObjectWrapper nextPoint = route.getNextPoint();
         RouteObjectWrapper prevPoint = route.getPreviousPoint();
         RouteObjectWrapper segment = route.getNextSegment();
-
-        // get next sub point of current segment if available
-        /*int currentBearing = currentLocation.bearingTo(nextPoint.getPoint());
-        int currentSubBearing = -1;
-        int currentSubDistance = -1;
-        Point subPoint = null;
-        Iterator<Point> listIterator = route.getSegmentSubPoints().iterator();
-        while (listIterator.hasNext()) {
-            subPoint = listIterator.next();
-            currentSubDistance = currentLocation.distanceTo(subPoint);
-            currentSubBearing = currentLocation.bearingTo(subPoint);
-            if ((currentSubDistance > 20) && (Math.abs(currentSubBearing - currentBearing) < 45))
-                break;
-            listIterator.remove();
-        }*/
-        /* String desc = "Kein Subpoint verfügbar";
-        if (subPoint != null) {
-            desc = currentSubBearing + " Grad; " + currentSubDistance + "m; noch " + route.getSegmentSubPoints().size() + " SubPunkte;";
-            if (subPoint instanceof IntersectionPoint)
-                desc += "\n" + ((IntersectionPoint) subPoint).toString();
-            else if (subPoint instanceof POIPoint)
-                desc += "\n" + ((POIPoint) subPoint).toString();
-            else if (subPoint instanceof StationPoint)
-                desc += "\n" + ((StationPoint) subPoint).toString();
-            else
-                desc += "\n" + subPoint.toString();
-        }
-        labelDetailInformation.setText(desc); */
-        /*currentBearing = currentSubBearing;
-        if (currentBearing == -1)
-            currentBearing = currentLocation.bearingTo(nextPoint.getPoint());*/
-
         int currentBearing = currentLocation.bearingTo(nextPoint.getPoint());
         int currentDistance = currentLocation.distanceTo(nextPoint.getPoint());
-        int clockDirection = HelperFunctions.getClockDirection(currentBearing - currentCompassValue);
         if (oldBearingValue == -1)
             oldBearingValue = currentBearing;
 
-        // tell the user, when the next route point is reached
-        // either by bearing or distance
-        int threshold_angle = 75;
-        int calculated_angle = 0;
-        if (segment.getFootwaySegment() != null) {
-            calculated_angle = Math.min(Math.abs(segment.getFootwaySegment().getBearing() - currentBearing),
-                    (360 - Math.abs(segment.getFootwaySegment().getBearing() - currentBearing)) );
-            if ((currentDistance < 25) && (pointFoundDistance == false)) {
-                pointFoundDistance = true;
-                if (segment.getFootwaySegment().getDistance() > 25) {
-                    Toast.makeText(getActivity(),
-                            getResources().getString(R.string.messageTwentyFiveMeters),
-                            Toast.LENGTH_SHORT).show();
-                }
-            }
-            if ((pointFoundBearing == false) && (pointFoundDistance == true)) {
-                if (nextPoint.getIntersection() != null
-                        && nextPoint.getIntersection().getNumberOfBigStreets() > 1) {
-                    threshold_angle = 40;
-                }
-                if (calculated_angle > threshold_angle || currentDistance <= 5) {
-                    pointFoundBearing = true;
-                    if (nextPoint.getPoint().getTurn() > -1) {
-                        String nextDirection = HelperFunctions.getFormatedDirection(nextPoint.getPoint().getTurn());
-                        if (nextDirection.equals(getResources().getString(R.string.directionStraightforward))) {
-                            Toast.makeText(getActivity(),
-                                    String.format(
-                                        getResources().getString(R.string.messageReachedIntermediatePointAhead),
-                                        route.getNextPointNumber(), route.getNumberOfPoints() ),
-                                    Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(getActivity(),
-                                    String.format(
-                                        getResources().getString(R.string.messageReachedIntermediatePointTurn),
-                                        route.getNextPointNumber(), route.getNumberOfPoints(),
-                                        HelperFunctions.getFormatedDirection(nextPoint.getPoint().getTurn()) ),
-                                    Toast.LENGTH_SHORT).show();
-                        }
-                    } else {
-                        Toast.makeText(getActivity(),
-                                String.format(
-                                    getResources().getString(R.string.messageReachedDestinationPoint),
-                                    route.getNextPointNumber(), route.getNumberOfPoints() ),
-                                Toast.LENGTH_SHORT).show();
-                    }
-                }
-            }
-        }
-        // transport segment
-        if (segment.getTransportSegment() != null) {
-            if ((currentDistance < 75) && (pointFoundDistance == false)) {
-                pointFoundDistance = true;
-                Toast.makeText(getActivity(),
-                        String.format(
-                            getResources().getString(R.string.messageReachedStation),
-                            nextPoint.getPoint().getName() ),
-                        Toast.LENGTH_SHORT).show();
-            }
-        }
-
         String pointDescription = "";
+        IntersectionPoint.IntersectionWay prevWay, nextWay = null;
         if (nextPoint.getIntersection() != null) {
-            if (route.getNextPointNumber() == 1) {
-                pointDescription = String.format(
-                            getResources().getString(R.string.messagePointDescInterStart),
-                            nextPoint.getIntersection().getName());
-            } else if (route.getNextPointNumber() == route.getNumberOfPoints()) {
-                pointDescription = String.format(
-                            getResources().getString(R.string.messagePointDescInterDestination),
-                            nextPoint.getIntersection().getName());
+            if (nextPoint.getIntersection().getTurn() < 0) {
+                if (route.getNextPointNumber() == 1) {
+                    pointDescription = String.format(
+                                getResources().getString(R.string.messagePointDescInterStart),
+                                nextPoint.getIntersection().getName());
+                } else if (route.getNextPointNumber() == route.getNumberOfPoints()) {
+                    pointDescription = String.format(
+                                getResources().getString(R.string.messagePointDescInterDestination),
+                                nextPoint.getIntersection().getName());
+                }
             } else {
-                String nextStreetName = "";
-                String streets = "";
                 int absValue = 0;
-                int bearingOfPrevSegment = segment.getFootwaySegment().getBearing() - 180;
+                int minAbsValue = 360;
+                int bearingOfPrevSegment, bearingOfNextSegment;
+                if (segment.getFootwaySegment() != null) {
+                    bearingOfPrevSegment = segment.getFootwaySegment().getBearing() - 180;
+                    bearingOfNextSegment = segment.getFootwaySegment().getBearing() + nextPoint.getPoint().getTurn();
+                } else {
+                    bearingOfPrevSegment = currentBearing - 180;
+                    bearingOfNextSegment = currentBearing + nextPoint.getPoint().getTurn();
+                }
                 if (bearingOfPrevSegment < 0)
                     bearingOfPrevSegment += 360;
-                int bearingOfNextSegment = segment.getFootwaySegment().getBearing() + nextPoint.getPoint().getTurn();
                 if (bearingOfNextSegment >= 360)
                     bearingOfNextSegment -= 360;
+                // find closest intersection way and calculate relative bearings
                 for (IntersectionPoint.IntersectionWay way : nextPoint.getIntersection().getSubPoints()) {
-                    absValue = Math.abs( bearingOfNextSegment - way.getIntersectionBearing());
-                    if ((absValue < 10) || (absValue > 350)) {
-                        nextStreetName = way.getName();
+                    way.setRelativeBearing(currentCompassValue);
+                    absValue = Math.abs(bearingOfNextSegment - way.getIntersectionBearing());
+                    if (absValue > 180)
+                        absValue = 360 - absValue;
+                    if (absValue < minAbsValue) {
+                        nextWay = way;
+                        minAbsValue = absValue;
                     }
-                    absValue = way.getIntersectionBearing() - currentCompassValue;
-                    if (streets.equals(""))
-                        streets += HelperFunctions.getFormatedDirection(absValue) + ": " + way.getName();
-                    else
-                        streets += ", " + HelperFunctions.getFormatedDirection(absValue) + ": " + way.getName();
+                }
+                Collections.sort(nextPoint.getIntersection().getSubPoints());
+                ArrayList<String> streetList = new ArrayList<String>();
+                for (IntersectionPoint.IntersectionWay way : nextPoint.getIntersection().getSubPoints()) {
+                    if (way == nextWay) {
+                        streetList.add(
+                                HelperFunctions.getFormatedDirection(way.getRelativeBearing())
+                                + ": *" + way.getName());
+                    } else {
+                        streetList.add(
+                                HelperFunctions.getFormatedDirection(way.getRelativeBearing())
+                                + ": " + way.getName() );
+                    }
                 }
                 if (nextPoint.getIntersection().getTrafficSignalList().size() > 0) {
                     labelDetailInformation.setText( String.format(
                                 getResources().getString(R.string.messageDynamicIntersectionDescriptionWithTS),
-                                streets, nextPoint.getIntersection().getTrafficSignalList().size()) );
+                                TextUtils.join(";", streetList),
+                                nextPoint.getIntersection().getTrafficSignalList().size()) );
                 } else {
                     labelDetailInformation.setText( String.format(
-                                getResources().getString(R.string.messageDynamicIntersectionDescription), streets) );
+                                getResources().getString(R.string.messageDynamicIntersectionDescription),
+                                TextUtils.join(";", streetList)) );
                 }
                 int turn = nextPoint.getIntersection().getTurn();
                 if ((turn > 22) && (turn < 338)) {
-                    if (!nextStreetName.equals("")) {
+                    if (nextWay != null) {
                         pointDescription = String.format(
                                 getResources().getString(R.string.messagePointDescInterInterWithStreet),
                                 nextPoint.getIntersection().getName(),
                                 HelperFunctions.getFormatedDirection(turn),
-                                nextStreetName);
+                                nextWay.getName());
                     } else {
                         pointDescription = String.format(
                                 getResources().getString(R.string.messagePointDescInterInter),
@@ -666,47 +536,46 @@ public class RouterFragment extends Fragment {
                                 HelperFunctions.getFormatedDirection(turn));
                     }
                 } else {
-                    pointDescription = String.format(
-                            getResources().getString(R.string.messagePointDescInterInterStraight),
-                            nextPoint.getIntersection().getName());
+                    if (nextWay != null) {
+                        pointDescription = String.format(
+                                getResources().getString(R.string.messagePointDescInterInterStraightWithName),
+                                nextPoint.getIntersection().getName(), nextWay.getName());
+                    } else {
+                        pointDescription = String.format(
+                                getResources().getString(R.string.messagePointDescInterInterStraight),
+                                nextPoint.getIntersection().getName());
+                    }
                 }
             }
             labelNextPointDescription.setText(pointDescription);
-        } else if (nextPoint.getPOI() != null) {
-            if (route.getNextPointNumber() == 1) {
-                labelNextPointDescription.setText( String.format(
-                            getResources().getString(R.string.messagePointDescPOIStart),
-                            nextPoint.getPOI().getName() ));
-            } else if (route.getNextPointNumber() == route.getNumberOfPoints()) {
-                labelNextPointDescription.setText( String.format(
-                            getResources().getString(R.string.messagePointDescPOIDestination),
-                            nextPoint.getPOI().getName() ));
-            } else {
-                labelNextPointDescription.setText( String.format(
-                            getResources().getString(R.string.messagePointDescPOIInter),
-                            nextPoint.getPOI().getName() ));
-            }
-        } else if (nextPoint.getStation() != null) {
+        } else if (nextPoint.getPOI() != null
+                || nextPoint.getStation() != null) {
             if (route.getNextPointNumber() == 1) {
                 labelNextPointDescription.setText( String.format(
                             getResources().getString(R.string.messagePointDescStationStart),
-                            nextPoint.getStation().getName(),
-                            nextPoint.getStation().getSubType() ));
+                            nextPoint.toString() ));
             } else if (route.getNextPointNumber() == route.getNumberOfPoints()) {
                 labelNextPointDescription.setText( String.format(
                             getResources().getString(R.string.messagePointDescStationDestination),
-                            nextPoint.getStation().getName(),
-                            nextPoint.getStation().getSubType() ));
+                            nextPoint.toString() ));
             } else {
                 labelNextPointDescription.setText( String.format(
                             getResources().getString(R.string.messagePointDescStationInter),
-                            nextPoint.getStation().getName(),
-                            nextPoint.getStation().getSubType() ));
+                            nextPoint.toString() ));
+                String nextDirection = HelperFunctions.getFormatedDirection(nextPoint.getPoint().getTurn());
+                if (nextDirection.equals(getResources().getString(R.string.directionStraightforward))) {
+                    labelNextPointDescription.setText( labelNextPointDescription.getText().toString() +
+                            getResources().getString(R.string.messagePointDescStationInterStraight));
+                } else if (nextDirection.equals(getResources().getString(R.string.directionBehindYou))) {
+                    labelNextPointDescription.setText( labelNextPointDescription.getText().toString() +
+                            getResources().getString(R.string.messagePointDescStationInterBehindYou));
+                } else {
+                    labelNextPointDescription.setText( labelNextPointDescription.getText().toString() +
+                            String.format(
+                                getResources().getString(R.string.messagePointDescStationInterTurn),
+                                nextDirection));
+                }
             }
-            if (nextPoint.getStation().getFoundInOSMDatabase() == false)
-                labelNextPointDescription.setText( String.format(
-                            getResources().getString(R.string.messagePointDescStationNoPos),
-                            labelNextPointDescription.getText().toString() ));
         } else {
             if (route.getNextPointNumber() == 1) {
                 labelNextPointDescription.setText(getResources().getString(R.string.messagePointDescWayPointStart));
@@ -746,23 +615,114 @@ public class RouterFragment extends Fragment {
                     segment.getTransportSegment().getDuration(),
                     segment.getTransportSegment().getNumberOfStops() ));
         } else {
-            labelNextSegmentDescription.setText( String.format(
-                    getResources().getString(R.string.messageSegmentDescStart), currentDistance));
+            labelNextSegmentDescription.setText("");
+            // String.format(getResources().getString(R.string.messageSegmentDescStart), currentDistance));
         }
+
+        // tell the user, when the next route point is reached
+        // either by bearing or distance
+        int threshold_angle = 75;
+        int calculated_angle = 0;
+        if (segment.getFootwaySegment() != null) {
+            calculated_angle = Math.min(Math.abs(segment.getFootwaySegment().getBearing() - currentBearing),
+                    (360 - Math.abs(segment.getFootwaySegment().getBearing() - currentBearing)) );
+            if ((currentDistance < 25) && (pointFoundDistance == false)) {
+                pointFoundDistance = true;
+                if (nextPoint.getIntersection() != null) {
+                    int absValue = 0;
+                    int minAbsValue = 360;
+                    prevWay = null;
+                    int bearingOfPrevSegment = segment.getFootwaySegment().getBearing() - 180;
+                    if (bearingOfPrevSegment < 0)
+                        bearingOfPrevSegment += 360;
+                    for (IntersectionPoint.IntersectionWay way : nextPoint.getIntersection().getSubPoints()) {
+                        way.setRelativeBearing(segment.getFootwaySegment().getBearing());
+                        absValue = Math.abs(bearingOfPrevSegment - way.getIntersectionBearing());
+                        if (absValue > 180)
+                            absValue = 360 - absValue;
+                        if (absValue < minAbsValue) {
+                            prevWay = way;
+                            minAbsValue = absValue;
+                        }
+                    }
+                    Collections.sort(nextPoint.getIntersection().getSubPoints());
+                    ArrayList<String> streetList = new ArrayList<String>();
+                    for (IntersectionPoint.IntersectionWay way : nextPoint.getIntersection().getSubPoints()) {
+                        if (way != prevWay) {
+                            streetList.add(
+                                    HelperFunctions.getFormatedDirection(way.getRelativeBearing())
+                                    + ": " + way.getName());
+                        }
+                    }
+                    Toast.makeText(getActivity(),
+                            String.format(
+                                getResources().getString(R.string.messageTwentyFiveMetersFromIntersection),
+                                nextPoint.getIntersection().getName(), TextUtils.join(";", streetList)),
+                            Toast.LENGTH_SHORT).show();
+                } else if (segment.getFootwaySegment().getDistance() > 25
+                        && ! nextPoint.isEmpty()) {
+                    Toast.makeText(getActivity(),
+                            getResources().getString(R.string.messageTwentyFiveMeters),
+                            Toast.LENGTH_SHORT).show();
+                }
+            }
+            if ((pointFoundBearing == false) && (pointFoundDistance == true)) {
+                if (nextPoint.getIntersection() != null
+                        && nextPoint.getIntersection().getNumberOfBigStreets() > 1) {
+                    threshold_angle = 40;
+                }
+                if (calculated_angle > threshold_angle || currentDistance <= 5) {
+                    pointFoundBearing = true;
+                    String nextInstruction;
+                    if (nextPoint.getPoint().getTurn() > -1) {
+                        String nextDirection = HelperFunctions.getFormatedDirection(nextPoint.getPoint().getTurn());
+                        if (nextDirection.equals(getResources().getString(R.string.directionStraightforward))) {
+                            nextInstruction = String.format(
+                                        getResources().getString(R.string.messageReachedIntermediatePointAhead),
+                                        route.getNextPointNumber(), route.getNumberOfPoints() );
+                        } else {
+                            nextInstruction = String.format(
+                                        getResources().getString(R.string.messageReachedIntermediatePointTurn),
+                                        route.getNextPointNumber(), route.getNumberOfPoints(),
+                                        HelperFunctions.getFormatedDirection(nextPoint.getPoint().getTurn()) );
+                        }
+                        if (nextWay != null) {
+                            nextInstruction += String.format(
+                                        getResources().getString(R.string.messageReachedIntermediatePointNextSegment),
+                                        nextWay.getName());
+                        }
+                    } else {
+                        nextInstruction = String.format(
+                                    getResources().getString(R.string.messageReachedDestinationPoint),
+                                    route.getNextPointNumber(), route.getNumberOfPoints() );
+                    }
+                    Toast.makeText(getActivity(), nextInstruction, Toast.LENGTH_SHORT).show();
+                }
+            }
+        }
+        // transport segment
+        if (segment.getTransportSegment() != null) {
+            if ((currentDistance < 75) && (pointFoundDistance == false)) {
+                pointFoundDistance = true;
+                Toast.makeText(getActivity(),
+                        String.format(
+                            getResources().getString(R.string.messageReachedStation),
+                            nextPoint.getPoint().getName() ),
+                        Toast.LENGTH_SHORT).show();
+            }
+        }
+
 
         // refresh distance and bearing to the next point
         labelCurrentPoint.setText( String.format(
-                    getResources().getString(R.string.messagePointProgress),
-                    route.getNextPointNumber(), route.getNumberOfPoints() ));
+                getResources().getString(R.string.messagePointProgress),
+                route.getNextPointNumber(), route.getNumberOfPoints() ));
         labelDistance.setText( String.format(
-                    getResources().getString(R.string.messageDistanceAndBearing),
-                    currentDistance, clockDirection, currentCompassValue));
-
-        // speak updated contents of labelDistance field if focused
-        if (labelDistanceFocused && currentLocation.distanceTo(lastSpokenLocation) > 20) {
-            lastSpokenLocation = currentLocation;
-            labelDistance.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
-        }
+                getResources().getString(R.string.messageDistanceAndBearing),
+                currentDistance, HelperFunctions.getFormatedDirection(currentBearing - currentCompassValue),
+                HelperFunctions.getCompassDirection(currentCompassValue), currentCompassValue));
+        if (settingsManager.useGPSAsBearingSource())
+            labelDistance.setText(labelDistance.getText().toString() + " (GPS)");
     }
 
     public void showSimulationDialog() {
@@ -863,6 +823,215 @@ public class RouterFragment extends Fragment {
         dialog.show();
     }
 
+    private void showActionsMenuDialog(int objectIndex) {
+        ListView listView = (ListView) routeListLayout.findViewById(R.id.listRouteSegments);
+        RouteObjectWrapper routeObject = (RouteObjectWrapper) listView.getItemAtPosition(objectIndex);
+        Point point = routeObject.getPoint();
+        FootwaySegment footway = routeObject.getFootwaySegment();
+        TransportSegment transport = routeObject.getTransportSegment();
+
+        dialog = new Dialog(getActivity());
+        dialog.setContentView(R.layout.dialog_scrollable_empty);
+        dialog.setCanceledOnTouchOutside(false);
+        LinearLayout dialogLayout = (LinearLayout) dialog.findViewById(R.id.linearLayoutMain);
+        TextView label;
+        LayoutParams lp = new LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT );
+        LayoutParams lpMarginTop = new LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT );
+        ((MarginLayoutParams) lpMarginTop).topMargin =
+                Math.round(15 * getActivity().getApplicationContext().getResources().getDisplayMetrics().density);
+
+        // heading
+        label = new TextView(getActivity());
+        label.setLayoutParams(lp);
+        if (point != null)
+            label.setText( String.format(
+                        getResources().getString(R.string.labelActionsRoutePointDescription), point.getName()));
+        if (footway != null)
+            label.setText( String.format(
+                        getResources().getString(R.string.labelActionsRoutePointDescription), footway.getName()));
+        if (transport != null)
+            label.setText( String.format(
+                        getResources().getString(R.string.labelActionsRoutePointDescription), transport.getName()));
+        dialogLayout.addView(label);
+
+        Button buttonObjectDetails = new Button(getActivity());
+        buttonObjectDetails.setLayoutParams(lp);
+        buttonObjectDetails.setId(objectIndex);
+        buttonObjectDetails.setText(getResources().getString(R.string.buttonRouteObjectDetails));
+        buttonObjectDetails.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                ListView listView = (ListView) routeListLayout.findViewById(R.id.listRouteSegments);
+                RouteObjectWrapper routeObject = (RouteObjectWrapper) listView.getItemAtPosition(view.getId());
+                Intent intent = new Intent(getActivity(), RouteObjectDetailsActivity.class);
+                intent.putExtra("route_object", routeObject.toJson().toString());
+                // try to get way segment after this point
+                RouteObjectWrapper nextSegment = (RouteObjectWrapper) listView.getItemAtPosition(view.getId()+1);
+                if (nextSegment.getFootwaySegment() != null)
+                    intent.putExtra("nextSegmentBearing", ((FootwaySegment) nextSegment.getFootwaySegment()).getBearing() );
+                else
+                    intent.putExtra("nextSegmentBearing", -1);
+                startActivityForResult(intent, OBJECTDETAILS);
+                dialog.dismiss();
+            }
+        });
+        dialogLayout.addView(buttonObjectDetails);
+
+        if (point != null) {
+            Button buttonJumpToRoutePoint = new Button(getActivity());
+            buttonJumpToRoutePoint.setLayoutParams(lp);
+            buttonJumpToRoutePoint.setId(objectIndex);
+            buttonJumpToRoutePoint.setText(getResources().getString(R.string.buttonJumpToRoutePoint));
+            buttonJumpToRoutePoint.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
+                    route.setListPosition(view.getId());
+                    Button buttonSwitchRouteView = (Button) mainLayout.findViewById(R.id.buttonSwitchRouteView);
+                    buttonSwitchRouteView.setTag(1);
+                    updateUserInterface();
+                    dialog.dismiss();
+                }
+            });
+            dialogLayout.addView(buttonJumpToRoutePoint);
+
+            Button buttonSimulation = new Button(getActivity());
+            buttonSimulation.setLayoutParams(lp);
+            buttonSimulation.setId(objectIndex);
+            if ((currentLocation.distanceTo(routeObject.getPoint()) == 0) && (positionManager.getStatus() == PositionManager.Status.SIMULATION)) {
+                buttonSimulation.setText(getResources().getString(R.string.buttonStopSimulation));
+            } else {
+                buttonSimulation.setText(getResources().getString(R.string.buttonPointSimulation));
+            }
+            buttonSimulation.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
+                    ListView listView = (ListView) routeListLayout.findViewById(R.id.listRouteSegments);
+                    RouteObjectWrapper object = (RouteObjectWrapper) listView.getItemAtPosition(view.getId());
+                    if ((currentLocation.distanceTo(object.getPoint()) == 0) && (positionManager.getStatus() == PositionManager.Status.SIMULATION)) {
+                        positionManager.changeStatus(PositionManager.Status.GPS, null);
+                        messageToast.setText(
+                            getResources().getString(R.string.messageSimulationStopped));
+                    } else {
+                        positionManager.changeStatus(PositionManager.Status.SIMULATION, object.getPoint());
+                        messageToast.setText(
+                            getResources().getString(R.string.messagePositionSimulated));
+                    }
+                    messageToast.show();
+                    dialog.dismiss();
+                }
+            });
+            dialogLayout.addView(buttonSimulation);
+
+            Button buttonToFavorites = new Button(getActivity());
+            buttonToFavorites.setLayoutParams(lp);
+            buttonToFavorites.setId(objectIndex);
+            if (settingsManager.favoritesContains(routeObject)) {
+                buttonToFavorites.setText(getResources().getString(R.string.buttonToFavoritesClicked));
+            } else {
+                buttonToFavorites.setText(getResources().getString(R.string.buttonToFavorites));
+            }
+            buttonToFavorites.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
+                    ListView listView = (ListView) routeListLayout.findViewById(R.id.listRouteSegments);
+                    RouteObjectWrapper object = (RouteObjectWrapper) listView.getItemAtPosition(view.getId());
+                    if (settingsManager.favoritesContains(object)) {
+                        settingsManager.removePointFromFavorites(object);
+                        messageToast.setText(
+                            getResources().getString(R.string.messageRemovedFromFavorites));
+                    } else {
+                        settingsManager.addPointToFavorites(object);
+                        messageToast.setText(
+                            getResources().getString(R.string.messageAddedToFavorites));
+                    }
+                    messageToast.show();
+                    dialog.dismiss();
+                }
+            });
+            dialogLayout.addView(buttonToFavorites);
+
+            // new object
+            label = new TextView(getActivity());
+            label.setLayoutParams(lpMarginTop);
+            label.setText(getResources().getString(R.string.labelAsNewRouteObject));
+            dialogLayout.addView(label);
+            Route sourceRoute = settingsManager.getRouteRequest();
+            int index = 0;
+            for (RouteObjectWrapper object : sourceRoute.getRouteList()) {
+                Button buttonRouteObject = new Button(getActivity());
+                buttonRouteObject.setLayoutParams(lp);
+                buttonRouteObject.setId(index*1000000 + objectIndex);
+                if (index == 0) {
+                    buttonRouteObject.setText(getResources().getString(R.string.buttonAsNewStartPoint));
+                } else if (index == sourceRoute.getSize()-1) {
+                    buttonRouteObject.setText(getResources().getString(R.string.buttonAsNewDestinationPoint));
+                } else if (index % 2 == 0) {
+                    if (sourceRoute.getSize() == 5) {
+                        buttonRouteObject.setText(
+                                getResources().getString(R.string.buttonAsNewSingleIntermediatePoint));
+                    } else {
+                        buttonRouteObject.setText( String.format(
+                                    getResources().getString(R.string.buttonAsNewMultiIntermediatePoint),
+                                    (index/2) ));
+                    }
+                } else {
+                    // skip route segments
+                    index += 1;
+                    continue;
+                }
+                buttonRouteObject.setOnClickListener(new View.OnClickListener() {
+                    public void onClick(View view) {
+                        int routeRequestIndex = Math.round(view.getId()/1000000);
+                        int listIndex = view.getId() - routeRequestIndex*1000000;
+                        ListView listView = (ListView) routeListLayout.findViewById(R.id.listRouteSegments);
+                        RouteObjectWrapper object = (RouteObjectWrapper) listView.getItemAtPosition(listIndex);
+                        Route sourceRoute = settingsManager.getRouteRequest();
+                        sourceRoute.replaceRouteObjectAtIndex(routeRequestIndex, object);
+                        settingsManager.setRouteRequest(sourceRoute);
+                        dialog.dismiss();
+                        mRouterFListener.switchToOtherFragment("start");
+                    }
+                });
+                dialogLayout.addView(buttonRouteObject);
+                index += 1;
+            }
+        }
+
+        if (footway != null) {
+            Button buttonBlockFootwaySegment = new Button(getActivity());
+            buttonBlockFootwaySegment.setLayoutParams(lp);
+            buttonBlockFootwaySegment.setId(objectIndex);
+            if (settingsManager.footwaySegmentBlocked(footway))
+                buttonBlockFootwaySegment.setText(getResources().getString(R.string.buttonUnblockFootwaySegment));
+            else
+                buttonBlockFootwaySegment.setText(getResources().getString(R.string.buttonBlockFootwaySegment));
+            buttonBlockFootwaySegment.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
+                    ListView listView = (ListView) routeListLayout.findViewById(R.id.listRouteSegments);
+                    FootwaySegment footway = ((RouteObjectWrapper) listView.getItemAtPosition(view.getId())).getFootwaySegment();
+                    if (settingsManager.footwaySegmentBlocked(footway)) {
+                        settingsManager.unblockFootwaySegment(footway);
+                    } else {
+                        Intent intent = new Intent(getActivity(), BlockWaySegmentActivity.class);
+                        intent.putExtra("footway_object", footway.toJson().toString());
+                        startActivity(intent);
+                    }
+                    dialog.dismiss();
+                }
+            });
+            dialogLayout.addView(buttonBlockFootwaySegment);
+        }
+
+        Button buttonCancel = new Button(getActivity());
+        buttonCancel.setLayoutParams(lp);
+        buttonCancel.setText(getResources().getString(R.string.dialogCancel));
+        buttonCancel.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                dialog.dismiss();
+            }
+        });
+        dialogLayout.addView(buttonCancel);
+        dialog.show();
+    }
+
     @Override public void onPause() {
         super.onPause();
         Button buttonSwitchRouteView = (Button) mainLayout.findViewById(R.id.buttonSwitchRouteView);
@@ -872,13 +1041,13 @@ public class RouterFragment extends Fragment {
         settingsManager.addToTemporaryRouterFragmentSettings("buttonSimulation",
                 (Integer) buttonSimulation.getTag());
         gpsStatusHandler.removeCallbacks(gpsStatusUpdater);
-        positionManager.stopGPS();
-        sensorsManager.stopSensors();
+        poiManager.cancel();
+        positionManager.setPositionListener(null);
+        sensorsManager.setSensorsListener(null);
         // stop simulation
         if ((Integer) buttonSimulation.getTag() > 0) {
             mHandler.removeCallbacks(routeSimulator);
         }
-        poiManager.cancel();
     }
 
     @Override public void onResume() {
@@ -920,6 +1089,11 @@ public class RouterFragment extends Fragment {
                 updateUserInterface();
             }
         }
+        // warn if we got no route
+        if (route == null) {
+            messageToast.setText(getResources().getString(R.string.messageNoRouteLoaded));
+            messageToast.show();
+        }
 
         // poi manager
         poiManager.setPOIListener(new MyPOIListener());
@@ -929,24 +1103,21 @@ public class RouterFragment extends Fragment {
         keyboardManager.setKeyboardListener(new MyKeyboardListener());
         // sensors manager
         sensorsManager.setSensorsListener(new MySensorsListener());
-        sensorsManager.resumeSensors();
-        // position manager
+        // resume gps
         positionManager.setPositionListener(new MyPositionListener());
-        positionManager.resumeGPS();
-        // warn if we got no route
-        if (route == null) {
-            messageToast.setText(getResources().getString(R.string.messageNoRouteLoaded));
-            messageToast.show();
-        }
         // resume simulation
-        if ((Integer) buttonSimulation.getTag() > 0) {
+        if ((Integer) buttonSimulation.getTag() > 0)
             mHandler.postDelayed(routeSimulator, 100);
-        }
-        // gps quality hanler
+        // gps quality handler
         gpsStatusHandler.postDelayed(gpsStatusUpdater, 100);
     }
 
     public void queryPOIListUpdate() {
+        if (currentLocation == null
+                || currentCompassValue < 0
+                || settingsManager.getPresetIdInRouterFragment() < 1) {
+            return;
+        }
         POIPreset preset = settingsManager.getPOIPreset(settingsManager.getPresetIdInRouterFragment());
         boolean isInsidePublicTransport = false;
         if (numberOfHighSpeeds > 0)
@@ -956,8 +1127,10 @@ public class RouterFragment extends Fragment {
     }
 
     public void queryAddressUpdate() {
-        if (numberOfHighSpeeds == 0)
+        if (currentLocation != null
+                && numberOfHighSpeeds == 0) {
             addressManager.updateAddress(currentLocation);
+        }
     }
 
     public void previousRoutePoint() {
@@ -1002,12 +1175,12 @@ public class RouterFragment extends Fragment {
         route.nextPoint();
         RouteObjectWrapper segment = route.getNextSegment();
         if (segment.getFootwaySegment() != null) {
-            Toast.makeText(getActivity(),
-                    String.format(
-                        getResources().getString(R.string.messageNextPointFootway),
-                        segment.getFootwaySegment().getDistance(),
-                        segment.getFootwaySegment().getName()),
-                    Toast.LENGTH_LONG).show();
+            String instruction = String.format(
+                    getResources().getString(R.string.messageNextPointFootway),
+                    segment.getFootwaySegment().getDistance(), segment.getFootwaySegment().getName());
+            if (segment.getFootwaySegment().getSidewalk() >= 0)
+                instruction += ", " + segment.getFootwaySegment().printSidewalk();
+            Toast.makeText(getActivity(), instruction, Toast.LENGTH_LONG).show();
         } else if (segment.getTransportSegment() != null) {
             Toast.makeText(getActivity(),
                     String.format(
@@ -1105,14 +1278,17 @@ public class RouterFragment extends Fragment {
         public void locationChanged(Location location) {
             if (location == null)
                 return;
-            boolean startForFirstTime = false;
             currentLocation = new Point(
                     getResources().getString(R.string.locationNameCurrentPosition), location);
             currentLocation.addAccuracy( (int) Math.round(location.getAccuracy()) );
-            if (lastSpokenLocation == null) {
+            if (location.getSpeed() < 3.0
+                    && (lastSpokenLocation == null || currentLocation.distanceTo(lastSpokenLocation) > 15)) {
                 lastSpokenLocation = currentLocation;
+                TextView labelDistance= (TextView) nextPointLayout.findViewById(R.id.labelDistance);
+                messageToast.setText(labelDistance.getText().toString());
+                messageToast.show();
             }
-            if (location.getSpeed() >= 5.0) {
+            if (location.getSpeed() > 3.0) {
                 numberOfHighSpeeds = 2;
             } else if (numberOfHighSpeeds > 0) {
                 numberOfHighSpeeds -= 1;
@@ -1129,7 +1305,6 @@ public class RouterFragment extends Fragment {
                 queryAddressUpdate();
             }
         }
-
         public void displayGPSSettingsDialog() {
             Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
             startActivity(intent);
@@ -1137,20 +1312,86 @@ public class RouterFragment extends Fragment {
     }
 
     private class MySensorsListener implements SensorsManager.SensorsListener {
-        public void compassChanged(float degree) {
-            currentCompassValue = (int) Math.round(degree);
+        public void compassValueChanged(int degree) {
+            currentCompassValue = degree;
             updateRouteCurrentPositionFragment();
-            // check calibration of compass
-            compassCalibrationValidator.validate(
-                    currentLocation.getLocationObject(), currentCompassValue);
         }
-
-        public void acceleratorChanged(double accel) {
+        public void shakeDetected() {
             if (settingsManager.getShakeForNextRoutePoint() == true
-                    && accel >= settingsManager.getShakeIntensity()
                     && pointFoundDistance == true) {
                 nextRoutePoint();
             }
+        }
+    }
+
+    public class AdditionalOptionsAdapter extends ArrayAdapter<CharSequence> {
+        private Context ctx;
+        private LayoutInflater m_inflater = null;
+        public ArrayList<CharSequence> additionalOptionsArray;
+
+        public AdditionalOptionsAdapter(Context context, int textViewResourceId, ArrayList<CharSequence> array) {
+            super(context, textViewResourceId);
+            this.additionalOptionsArray = array;
+            this.ctx = context;
+            m_inflater = LayoutInflater.from(ctx);
+        }
+
+        @Override public View getView(int position, View convertView, ViewGroup parent) {
+            EntryHolder holder;
+            if (convertView == null) {
+                holder = new EntryHolder();
+                convertView = m_inflater.inflate(R.layout.table_row_one_column, parent, false);
+                holder.contents= (TextView) convertView.findViewById(R.id.labelColumnOne);
+                convertView.setTag(holder);
+            } else {
+                holder = (EntryHolder) convertView.getTag();
+            }
+            holder.contents.setText(getItem(position));
+            return convertView;
+        }
+
+        @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
+            EntryHolder holder;
+            if (convertView == null) {
+                holder = new EntryHolder();
+                convertView = m_inflater.inflate(R.layout.table_row_one_column, parent, false);
+                holder.contents= (TextView) convertView.findViewById(R.id.labelColumnOne);
+                convertView.setTag(holder);
+            } else {
+                holder = (EntryHolder) convertView.getTag();
+            }
+            if (position == 0) {
+                holder.contents.setText(
+                            getResources().getString(R.string.arrayAADisabledOpen) );
+            } else {
+                holder.contents.setText(getItem(position));
+            }
+            return convertView;
+        }
+
+        @Override public int getCount() {
+            if (additionalOptionsArray != null)
+                return additionalOptionsArray.size();
+            return 0;
+        }
+
+        @Override public CharSequence getItem(int position) {
+            return additionalOptionsArray.get(position);
+        }
+
+        @Override public int getPosition(CharSequence item) {
+            if (additionalOptionsArray.contains(item))
+                return additionalOptionsArray.indexOf(item);
+            return 0;
+        }
+
+        public void setArrayList(ArrayList<CharSequence> array) {
+            this.additionalOptionsArray = array;
+            notifyDataSetChanged();
+        }
+
+        private class EntryHolder {
+            public TextView contents;
         }
     }
 
@@ -1271,8 +1512,8 @@ public class RouterFragment extends Fragment {
                 Location l = new Location(getResources().getString(R.string.locationProviderGPS));
                 l.setLatitude(newLatitude);
                 l.setLongitude(newLongitude);
-                l.setAccuracy(0);
-                l.setBearing(currentCompassValue);
+                l.setAccuracy(1);
+                l.setBearing(currentLocation.getLocationObject().bearingTo(l));
                 l.setSpeed(speed);
                 l.setTime(System.currentTimeMillis());
                 // set new position
@@ -1319,11 +1560,10 @@ public class RouterFragment extends Fragment {
                         getResources().getString(R.string.messageGPSStatusSignalDetails),
                         gpsStatusText, location.getAccuracy(),
                         ((System.currentTimeMillis() - location.getTime()) / 1000),
-                        location.getSpeed() );
+                        location.getSpeed()*3.6 );
             }
             updateLabelStatus();
             gpsStatusHandler.postDelayed(this, 1000);
         }
     }
-
 }

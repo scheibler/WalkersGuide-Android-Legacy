@@ -23,47 +23,33 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="1.0"
-            android:text="@string/title_transport_route_chooser_activity" 
+            android:text="@string/labelRouteImportHeading" 
             android:textSize="18sp" />
+
+        <Button
+            android:id="@+id/buttonOK"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/dialogApply" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/labelRouteDescription"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="18sp" />
-
     <RadioGroup
-        android:id="@+id/radioRouteSortCriteria"
+        android:id="@+id/radioAvailableRoutes"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal" >
+        android:orientation="vertical" />
 
-        <RadioButton
-            android:id="@+id/radioButtonRecommendedConnections"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/radioButtonRecommendedConnections" />
-
-        <RadioButton
-            android:id="@+id/radioButtonAllConnections"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/radioButtonAllConnections" />
-    </RadioGroup>
-
-    <ExpandableListView
-        android:id="@+id/listTransportRoutes"
+    <CheckBox
+        android:id="@+id/checkBoxDeleteAfterImport"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:checked="true"
+        android:text="@string/checkBoxDeleteAfterImport" />
 
     <TextView
-        android:id="@+id/labelEmptyTransportRouteList"
+        android:id="@+id/labelNoRoutesToImport"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/labelNoTransportRoutes" 
+        android:text="@string/labelNoRoutesToImport" 
         android:textSize="18sp" />
 </LinearLayout>

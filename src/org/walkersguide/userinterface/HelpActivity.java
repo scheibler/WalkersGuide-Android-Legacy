@@ -4,12 +4,12 @@ import org.walkersguide.R;
 import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.SettingsManager;
 
-import android.app.Activity;
 import android.os.Bundle;
+import android.text.util.Linkify;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
-public class HelpActivity extends Activity {
+public class HelpActivity extends AbstractActivity {
 
     private Globals globalData;
     private SettingsManager settingsManager;
@@ -40,5 +40,15 @@ public class HelpActivity extends Activity {
                         getResources().getString(R.string.labelMapVersionKnown),
                         settingsManager.getMapVersion()) );
         }
+        TextView labelEMailAddress = (TextView) mainLayout.findViewById(R.id.labelEMailAddress);
+        labelEMailAddress.setAutoLinkMask(Linkify.EMAIL_ADDRESSES);
+        labelEMailAddress.setText( String.format(
+                    getResources().getString(R.string.labelSupportEMailAddress),
+                    settingsManager.getEMailAddress() ));
+        TextView labelWebsite = (TextView) mainLayout.findViewById(R.id.labelWebsite);
+        labelWebsite.setAutoLinkMask(Linkify.WEB_URLS);
+        labelWebsite.setText( String.format(
+                    getResources().getString(R.string.labelProjectWebsite),
+                    settingsManager.getHostURL() ));
     }
 }

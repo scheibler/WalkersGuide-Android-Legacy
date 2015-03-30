@@ -4,12 +4,11 @@ import java.text.DateFormat;
 import java.util.Date;
 
 import org.walkersguide.R;
-import org.walkersguide.utils.CompassCalibrationValidator;
+import org.walkersguide.sensors.PositionManager;
+import org.walkersguide.sensors.SensorsManager;
 import org.walkersguide.utils.Globals;
-import org.walkersguide.utils.PositionManager;
-import org.walkersguide.utils.SensorsManager;
+import org.walkersguide.utils.SettingsManager;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.location.Location;
 import android.os.Bundle;
@@ -19,12 +18,12 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-public class GPSStatusActivity extends  Activity {
+public class GPSStatusActivity extends  AbstractActivity {
 
     private Globals globalData;
     private PositionManager positionManager;
     private SensorsManager sensorsManager;
-    private CompassCalibrationValidator compassCalibrationValidator;
+    private SettingsManager settingsManager;
     private LinearLayout mainLayout;
     private Location currentLocation;
     private int compass;
@@ -39,8 +38,9 @@ public class GPSStatusActivity extends  Activity {
         positionManager = globalData.getPositionManagerInstance();
         // sensors manager
         sensorsManager = globalData.getSensorsManagerInstance();
-        // compass calibration validator
-        compassCalibrationValidator = globalData.getCompasscalibrationvalidatorInstance();
+        // settings manager
+        settingsManager = globalData.getSettingsManagerInstance();
+        compass = -1;
 
         // load layout
         setContentView(R.layout.activity_gps_status);
@@ -51,8 +51,10 @@ public class GPSStatusActivity extends  Activity {
             public void onClick(View view) {
                 if (positionManager.isLogging()) {
                     positionManager.stopLogging();
+                    settingsManager.setFakeCompassValues(false);
                 } else {
                     positionManager.startLogging();
+                    settingsManager.setFakeCompassValues(true);
                 }
                 updateUserInterface();
             }
@@ -61,27 +63,34 @@ public class GPSStatusActivity extends  Activity {
 
     @Override public void onPause() {
         super.onPause();
-        positionManager.stopGPS();
-        sensorsManager.stopSensors();
+        sensorsManager.setSensorsListener(null);
+        positionManager.setPositionListener(null);
     }
 
     @Override public void onResume() {
         super.onResume();
         sensorsManager.setSensorsListener(new MySensorsListener());
-        sensorsManager.resumeSensors();
         positionManager.setPositionListener(new MyPositionListener());
-        positionManager.resumeGPS();
-        updateUserInterface();
     }
 
-    public void updateUserInterface() {
+    public synchronized void updateUserInterface() {
         if (currentLocation != null) {
             ((TextView) mainLayout.findViewById(R.id.labelLatitude)).setText(
                     String.format("%1$s %2$f", getResources().getString(R.string.labelLatitude),
                         currentLocation.getLatitude()) );
+        } else {
+            ((TextView) mainLayout.findViewById(R.id.labelLatitude)).setText(
+                getResources().getString(R.string.labelLatitude));
+        }
+        if (currentLocation != null) {
             ((TextView) mainLayout.findViewById(R.id.labelLongitude)).setText(
                     String.format("%1$s %2$f", getResources().getString(R.string.labelLongitude),
                         currentLocation.getLongitude()) );
+        } else {
+            ((TextView) mainLayout.findViewById(R.id.labelLongitude)).setText(
+                getResources().getString(R.string.labelLongitude));
+        }
+        if (currentLocation != null) {
             if (currentLocation.getProvider().equals("gps")) {
                 ((TextView) mainLayout.findViewById(R.id.labelProvider)).setText(
                         String.format("%1$s %2$s", getResources().getString(R.string.labelProvider),
@@ -95,37 +104,74 @@ public class GPSStatusActivity extends  Activity {
                         String.format("%1$s %2$s", getResources().getString(R.string.labelProvider),
                             currentLocation.getProvider()) );
             }
-            if ((currentLocation.getExtras() != null) && (currentLocation.getExtras().containsKey("satellites") == true)) {
-                ((TextView) mainLayout.findViewById(R.id.labelSatellites)).setText(
-                        String.format("%1$s %2$d", getResources().getString(R.string.labelSatellites),
-                            currentLocation.getExtras().getInt("satellites")) );
-            }
-            if (currentLocation.hasAccuracy()) {
-                ((TextView) mainLayout.findViewById(R.id.labelAccuracy)).setText(
-                    String.format( getResources().getString(R.string.labelAccuracyFormated),
-                        currentLocation.getAccuracy()) );
-            }
-            if (currentLocation.hasAltitude()) {
-                ((TextView) mainLayout.findViewById(R.id.labelAltitude)).setText(
-                    String.format( getResources().getString(R.string.labelAltitudeFormated),
-                        currentLocation.getAltitude()) );
-            }
-            if (currentLocation.hasSpeed()) {
-                ((TextView) mainLayout.findViewById(R.id.labelSpeed)).setText(
-                    String.format( getResources().getString(R.string.labelSpeedFormated),
-                        currentLocation.getSpeed()) );
-            }
-            if (currentLocation.hasBearing()) {
-                ((TextView) mainLayout.findViewById(R.id.labelBearing)).setText(
-                    String.format( getResources().getString(R.string.labelBearingFormated),
-                        currentLocation.getBearing()) );
-            }
-            ((TextView) mainLayout.findViewById(R.id.labelCompass)).setText(
-                    String.format( getResources().getString(R.string.labelCompassFormated), compass) );
+        } else {
+            ((TextView) mainLayout.findViewById(R.id.labelProvider)).setText(
+                getResources().getString(R.string.labelProvider));
+        }
+        if (currentLocation != null
+                && currentLocation.getExtras() != null
+                && currentLocation.getExtras().containsKey("satellites")) {
+            ((TextView) mainLayout.findViewById(R.id.labelSatellites)).setText(
+                String.format("%1$s %2$d", getResources().getString(R.string.labelSatellites),
+                    currentLocation.getExtras().getInt("satellites")) );
+        } else {
+            ((TextView) mainLayout.findViewById(R.id.labelSatellites)).setText(
+                getResources().getString(R.string.labelSatellites));
+        }
+        if (currentLocation != null && currentLocation.hasAccuracy()) {
+            ((TextView) mainLayout.findViewById(R.id.labelAccuracy)).setText(
+                String.format("%1$s %2$.0f Meter", getResources().getString(R.string.labelAccuracy),
+                    currentLocation.getAccuracy()) );
+        } else {
+            ((TextView) mainLayout.findViewById(R.id.labelAccuracy)).setText(
+                getResources().getString(R.string.labelAccuracy));
+        }
+        if (currentLocation != null && currentLocation.hasAltitude()) {
+            ((TextView) mainLayout.findViewById(R.id.labelAltitude)).setText(
+                String.format("%1$s %2$.0f Meter", getResources().getString(R.string.labelAltitude),
+                    currentLocation.getAltitude()) );
+        } else {
+            ((TextView) mainLayout.findViewById(R.id.labelAltitude)).setText(
+                getResources().getString(R.string.labelAltitude));
+        }
+        if (currentLocation != null && currentLocation.hasSpeed()) {
+            ((TextView) mainLayout.findViewById(R.id.labelSpeed)).setText(
+                String.format("%1$s %2$.1f km/h", getResources().getString(R.string.labelSpeed),
+                    currentLocation.getSpeed() * 3.6) );
+        } else {
+            ((TextView) mainLayout.findViewById(R.id.labelSpeed)).setText(
+                getResources().getString(R.string.labelSpeed));
+        }
+        if (currentLocation != null && currentLocation.hasBearing()) {
+            ((TextView) mainLayout.findViewById(R.id.labelBearing)).setText(
+                String.format("%1$s %2$.0f°", getResources().getString(R.string.labelBearing),
+                    currentLocation.getBearing()) );
+        } else {
+            ((TextView) mainLayout.findViewById(R.id.labelBearing)).setText(
+                getResources().getString(R.string.labelBearing));
+        }
+        if (currentLocation != null) {
             ((TextView) mainLayout.findViewById(R.id.labelTime)).setText(
-                    String.format( getResources().getString(R.string.labelTimeFormated),
-                        DateFormat.getTimeInstance().format(new Date(currentLocation.getTime())),
-                        DateFormat.getDateInstance().format(new Date(currentLocation.getTime())) ));
+                String.format("%1$s %2$s %3$s", getResources().getString(R.string.labelTime),
+                    DateFormat.getTimeInstance().format(new Date(currentLocation.getTime())),
+                    DateFormat.getDateInstance().format(new Date(currentLocation.getTime())) ));
+        } else {
+            ((TextView) mainLayout.findViewById(R.id.labelTime)).setText(
+                getResources().getString(R.string.labelTime));
+        }
+        if (compass >= 0) {
+            ((TextView) mainLayout.findViewById(R.id.labelCompass)).setText(
+                String.format("%1$s %2$d°", getResources().getString(R.string.labelCompass), compass));
+        } else {
+            ((TextView) mainLayout.findViewById(R.id.labelCompass)).setText(
+                getResources().getString(R.string.labelCompass));
+        }
+        if (settingsManager.useGPSAsBearingSource()) {
+            ((TextView) mainLayout.findViewById(R.id.labelBearingSource)).setText(
+                getResources().getString(R.string.labelUseGPSAsBearingSource));
+        } else {
+            ((TextView) mainLayout.findViewById(R.id.labelBearingSource)).setText(
+                getResources().getString(R.string.labelUseAccMagAsBearingSource));
         }
         Button buttonLogging = (Button) mainLayout.findViewById(R.id.buttonLogging);
         if (positionManager.isLogging()) {
@@ -137,12 +183,9 @@ public class GPSStatusActivity extends  Activity {
 
     private class MyPositionListener implements PositionManager.PositionListener {
         public void locationChanged(Location location) {
-            if (location != null) {
-                currentLocation = location;
-                updateUserInterface();
-            }
+            currentLocation = location;
+            updateUserInterface();
         }
-
         public void displayGPSSettingsDialog() {
             Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
             startActivity(intent);
@@ -150,11 +193,10 @@ public class GPSStatusActivity extends  Activity {
     }
 
     private class MySensorsListener implements SensorsManager.SensorsListener {
-        public void compassChanged(float degree) {
-            compass = (int) Math.round(degree);
-            compassCalibrationValidator.validate(currentLocation, compass);
+        public void compassValueChanged(int degree) {
+            compass = degree;
             updateUserInterface();
         }
-        public void acceleratorChanged(double accel) {}
+        public void shakeDetected() {}
     }
 }

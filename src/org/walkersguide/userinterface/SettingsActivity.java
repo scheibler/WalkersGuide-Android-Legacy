@@ -4,10 +4,8 @@ import java.util.HashMap;
 
 import org.walkersguide.R;
 import org.walkersguide.utils.Globals;
-import org.walkersguide.utils.SensorsManager;
 import org.walkersguide.utils.SettingsManager;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -20,18 +18,15 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.RelativeLayout;
 import android.widget.Spinner;
-import android.widget.TextView;
 import android.widget.Toast;
 
-public class SettingsActivity extends  Activity {
+public class SettingsActivity extends  AbstractActivity {
 
     private static final int SETTINGSIMPORTED = 1;
     private Globals globalData;
     private SettingsManager settingsManager;
-    private SensorsManager sensorsManager;
     private Vibrator vibrator;
     private RelativeLayout mainLayout;
-    private double shakeIntensity;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -39,8 +34,6 @@ public class SettingsActivity extends  Activity {
             globalData = ((Globals) getApplicationContext());
         }
         settingsManager = globalData.getSettingsManagerInstance();
-        sensorsManager = globalData.getSensorsManagerInstance();
-        sensorsManager.setSensorsListener(new MySensorsListener());
         vibrator = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
         setContentView(R.layout.activity_settings);
         mainLayout = (RelativeLayout) findViewById(R.id.linearLayoutMain);
@@ -61,8 +54,6 @@ public class SettingsActivity extends  Activity {
         }
         spinnerRouteFactor.setSelection(index);
 
-        // shake intensity
-        shakeIntensity = settingsManager.getShakeIntensity();
         Button buttonShakeNextPoint = (Button) mainLayout.findViewById(R.id.buttonShakeNextPoint);
         if (settingsManager.getShakeForNextRoutePoint()) {
             buttonShakeNextPoint.setTag(1);
@@ -80,25 +71,13 @@ public class SettingsActivity extends  Activity {
                 updateUserInterface();
             }
         });
-        Button buttonChangeShakeIntensity = (Button) mainLayout.findViewById(R.id.buttonChangeShakeIntensity);
-        buttonChangeShakeIntensity.setTag(0);
-        buttonChangeShakeIntensity.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View view) {
-                Button buttonChangeShakeIntensity = (Button) mainLayout.findViewById(R.id.buttonChangeShakeIntensity);
-                if ((Integer) buttonChangeShakeIntensity.getTag() == 0) {
-                    shakeIntensity = 0.0;
-                    buttonChangeShakeIntensity.setTag(1);
-                    sensorsManager.resumeSensors();
-                    Toast.makeText(getApplicationContext(),
-                            getResources().getString(R.string.messageChangeShakeIntensity),
-                            Toast.LENGTH_SHORT).show();
-                } else {
-                    buttonChangeShakeIntensity.setTag(0);
-                    sensorsManager.stopSensors();
-                }
-                updateUserInterface();
-            }
-        });
+
+        Spinner spinnerShakeIntensity = (Spinner) mainLayout.findViewById(R.id.spinnerShakeIntensity);
+        ArrayAdapter<CharSequence> adapterShakeIntensity = ArrayAdapter.createFromResource(this,
+                R.array.arrayShakeIntensity, android.R.layout.simple_spinner_item);
+        adapterShakeIntensity.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerShakeIntensity.setAdapter(adapterShakeIntensity);
+        spinnerShakeIntensity.setSelection(settingsManager.getShakeIntensity());
 
         // server part
         // url
@@ -299,7 +278,8 @@ public class SettingsActivity extends  Activity {
         } else {
             settingsManager.setShakeForNextRoutePoint(true);
         }
-        settingsManager.setShakeIntensity(shakeIntensity);
+        Spinner spinnerShakeIntensity = (Spinner) mainLayout.findViewById(R.id.spinnerShakeIntensity);
+        settingsManager.setShakeIntensity(spinnerShakeIntensity.getSelectedItemPosition());
         settingsManager.setHostURL(url);
         settingsManager.setHostPort(port);
         settingsManager.setRouteFactor(routeFactor);
@@ -312,15 +292,6 @@ public class SettingsActivity extends  Activity {
             buttonShakeNextPoint.setText(getResources().getString(R.string.buttonShakeNextPointNo));
         } else {
             buttonShakeNextPoint.setText(getResources().getString(R.string.buttonShakeNextPointYes));
-        }
-        TextView labelChangeShakeIntensity = (TextView) mainLayout.findViewById(R.id.labelChangeShakeIntensity);
-        labelChangeShakeIntensity.setText( String.format(
-                getResources().getString(R.string.labelChangeShakeIntensityValue), shakeIntensity) );
-        Button buttonChangeShakeIntensity = (Button) mainLayout.findViewById(R.id.buttonChangeShakeIntensity);
-        if ((Integer) buttonChangeShakeIntensity.getTag() == 0) {
-            buttonChangeShakeIntensity.setText(getResources().getString(R.string.buttonChangeShakeIntensity));
-        } else {
-            buttonChangeShakeIntensity.setText(getResources().getString(R.string.buttonChangeShakeIntensityClicked));
         }
     }
 
@@ -335,20 +306,4 @@ public class SettingsActivity extends  Activity {
         }
     }
 
-
-    private class MySensorsListener implements SensorsManager.SensorsListener {
-        public void compassChanged(float degree) {}
-        public void acceleratorChanged(double accel) {
-            if (shakeIntensity < accel) {
-                shakeIntensity = accel;
-            }
-            if (shakeIntensity > 3.0 && accel < shakeIntensity/5) {
-                Button buttonChangeShakeIntensity = (Button) mainLayout.findViewById(R.id.buttonChangeShakeIntensity);
-                buttonChangeShakeIntensity.setTag(0);
-                sensorsManager.stopSensors();
-                vibrator.vibrate(500);
-            }
-            updateUserInterface();
-        }
-    }
 }

@@ -5,12 +5,11 @@ import org.json.JSONObject;
 import org.walkersguide.R;
 import org.walkersguide.routeobjects.POIPoint;
 import org.walkersguide.routeobjects.Point;
+import org.walkersguide.sensors.PositionManager;
 import org.walkersguide.utils.DataDownloader;
 import org.walkersguide.utils.Globals;
-import org.walkersguide.utils.PositionManager;
 import org.walkersguide.utils.SettingsManager;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.location.Location;
 import android.os.Bundle;
@@ -26,7 +25,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class AddFavoriteActivity extends Activity {
+public class AddFavoriteActivity extends AbstractActivity {
 
     private Globals globalData;
     private SettingsManager settingsManager;
@@ -127,28 +126,25 @@ public class AddFavoriteActivity extends Activity {
 
     public synchronized void updateUserInterface() {
         TextView labelLatitude = (TextView) mainLayout.findViewById(R.id.labelLatitude);
-        labelLatitude.setText( String.format(
-                    getResources().getString(R.string.labelLatitudeFormated),
-                    currentPosition.getLatitude() ));
+        labelLatitude.setText( String.format("%1$s %2$f",
+                getResources().getString(R.string.labelLatitude), currentPosition.getLatitude() ));
         TextView labelLongitude = (TextView) mainLayout.findViewById(R.id.labelLongitude);
-        labelLongitude.setText( String.format(
-                    getResources().getString(R.string.labelLongitudeFormated),
-                    currentPosition.getLongitude() ));
+        labelLongitude.setText( String.format("%1$s %2$f",
+                getResources().getString(R.string.labelLongitude), currentPosition.getLongitude() ));
         TextView labelAccuracy = (TextView) mainLayout.findViewById(R.id.labelAccuracy);
         labelAccuracy.setText( String.format(
-                    getResources().getString(R.string.labelRoundedAccuracyFormated),
-                    currentPosition.getAccuracy() ));
+                getResources().getString(R.string.labelRoundedAccuracyFormated),
+                currentPosition.getAccuracy() ));
     }
 
     @Override public void onPause() {
         super.onPause();
-        positionManager.stopGPS();
+        positionManager.setPositionListener(null);
     }
 
     @Override public void onResume() {
         super.onResume();
         positionManager.setPositionListener(new MyPositionListener());
-        positionManager.resumeGPS();
     }
 
     private class MyPositionListener implements PositionManager.PositionListener {
@@ -159,7 +155,6 @@ public class AddFavoriteActivity extends Activity {
                     getResources().getString(R.string.locationNameCurrentPosition), location);
             updateUserInterface();
         }
-        
         public void displayGPSSettingsDialog() {
             Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
             startActivity(intent);

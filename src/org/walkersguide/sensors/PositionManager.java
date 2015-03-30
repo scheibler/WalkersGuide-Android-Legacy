@@ -1,10 +1,13 @@
-package org.walkersguide.utils;
+package org.walkersguide.sensors;
 
 import java.text.SimpleDateFormat;
 
 import org.walkersguide.R;
 import org.walkersguide.routeobjects.Point;
 import org.walkersguide.userinterface.DialogActivity;
+import org.walkersguide.utils.DataLogger;
+import org.walkersguide.utils.Globals;
+import org.walkersguide.utils.SettingsManager;
 
 import android.content.Context;
 import android.content.Intent;
@@ -29,7 +32,7 @@ public class PositionManager {
     }
 
 	private static final String tag = "PositionManager"; // for Log
-    private PositionListener pListener;
+    private PositionListener pRawGPSListener, pFilteredListener;
     private Context mContext;
     private Toast messageToast;
     private SettingsManager settingsManager;
@@ -42,13 +45,9 @@ public class PositionManager {
     private String simulationName;
     private boolean showSpeedMessage;
     private Location currentBestLocation;
-    private ServiceLocationListener gpsLocationListener;
-    private ServiceLocationListener networkLocationListener;
-    private ServiceLocationListener passiveLocationListener;
     private LocationManager locationManager;
-    private LocationProvider gpsProvider;
-    private LocationProvider networkProvider;
-    private LocationProvider passiveProvider;
+    private LocationListener locationListener;
+    private long lastMatchTime;
 
     // warn, if we get no new location at all
     private Handler mHandler;
@@ -64,61 +63,45 @@ public class PositionManager {
         status = Status.DISABLED;
         simulationActivated = false;
         this.simulationName = "";
-
         this.mHandler = new Handler();
         this.gpsTimer = new GPSTimer();
         vibrator = (Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE);
-        locationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
-
-        gpsProvider = locationManager.getProvider(LocationManager.GPS_PROVIDER);
-        networkProvider = locationManager.getProvider(LocationManager.NETWORK_PROVIDER);
-        passiveProvider = locationManager.getProvider(LocationManager.PASSIVE_PROVIDER);
+        lastMatchTime = System.currentTimeMillis();
 
         // Figure out if we have a location somewhere that we can use as a current best location
-        dataLogger.appendLog("started");
-        if( gpsProvider != null ) {
-            Location lastKnownGPSLocation = locationManager.getLastKnownLocation(gpsProvider.getName());
-            dataLogger.appendLog("xxx gps provider nicht null");
-            if( isBetterLocation(lastKnownGPSLocation, currentBestLocation) ) {
-                currentBestLocation = lastKnownGPSLocation;
-                dataLogger.appendLog("xxx gps ist besser .. " + lastKnownGPSLocation.toString());
-            }
+        //mGoogleApiClient = new GoogleApiClient.Builder(this)
+        //    .addConnectionCallbacks(this)
+        //    .addOnConnectionFailedListener(this)
+        //    .addApi(LocationServices.API).build();
+        locationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
+        locationListener = new LocationListener();
+        Location lastKnownSavedLocation = settingsManager.loadLastLocation();
+        if( isBetterLocation(lastKnownSavedLocation, currentBestLocation)) {
+            currentBestLocation = lastKnownSavedLocation;
+            dataLogger.appendLog("xxx saved ist besser .. " + lastKnownSavedLocation.toString());
         }
-        if( networkProvider != null ) {
-            Location lastKnownNetworkLocation = locationManager.getLastKnownLocation(networkProvider.getName());
-            dataLogger.appendLog("xxx netzwork  provider nicht null");
-            if( isBetterLocation(lastKnownNetworkLocation, currentBestLocation) ) {
-                currentBestLocation = lastKnownNetworkLocation;
-                dataLogger.appendLog("xxx netzwerk ist besser .. " + lastKnownNetworkLocation.toString());
-            }
+        Location lastKnownNetworkLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+        if( isBetterLocation(lastKnownNetworkLocation, currentBestLocation) ) {
+            currentBestLocation = lastKnownNetworkLocation;
+            dataLogger.appendLog("xxx netzwerk ist besser .. " + lastKnownNetworkLocation.toString());
         }
-        if( passiveProvider != null) {
-            Location lastKnownPassiveLocation = locationManager.getLastKnownLocation(passiveProvider.getName());
-            dataLogger.appendLog("xxx passive   provider nicht null");
-            if( isBetterLocation(lastKnownPassiveLocation, currentBestLocation)) {
-                currentBestLocation = lastKnownPassiveLocation;
-                dataLogger.appendLog("xxx passive ist besser .. " + lastKnownPassiveLocation.toString());
-            }
-        }
-        if (settingsManager.loadLastLocation() != null) {
-            Location lastKnownSavedLocation = settingsManager.loadLastLocation();
-            dataLogger.appendLog("xxx saved    provider nicht null");
-            if( isBetterLocation(lastKnownSavedLocation, currentBestLocation)) {
-                currentBestLocation = lastKnownSavedLocation;
-                dataLogger.appendLog("xxx saved ist besser .. " + lastKnownSavedLocation.toString());
-            }
+        Location lastKnownGPSLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        if( isBetterLocation(lastKnownGPSLocation, currentBestLocation) ) {
+            currentBestLocation = lastKnownGPSLocation;
+            dataLogger.appendLog("xxx gps ist besser .. " + lastKnownGPSLocation.toString());
         }
         dataLogger.appendLog("initialisierung fertig");
         startLogging = false;
         showSpeedMessage = false;
-
-        gpsLocationListener = new ServiceLocationListener();
-        networkLocationListener = new ServiceLocationListener();
-        passiveLocationListener = new ServiceLocationListener();
     }
 
-    public void setPositionListener(PositionListener pListener) {
-        this.pListener = pListener;
+    public void setPositionListener(PositionListener pFilteredListener) {
+        this.pFilteredListener = pFilteredListener;
+        getLastKnownLocation();
+    }
+
+    public void setRawGPSPositionListener(PositionListener pRawGPSListener) {
+        this.pRawGPSListener = pRawGPSListener;
     }
 
     public void startLogging() {
@@ -136,17 +119,19 @@ public class PositionManager {
     }
 
     public void getLastKnownLocation() {
-        if (currentBestLocation != null) {
-            pListener.locationChanged(currentBestLocation);
+        if (pFilteredListener != null) {
+            if (currentBestLocation != null) {
+                pFilteredListener.locationChanged(currentBestLocation);
+            } else {
+                messageToast.setText("no location found");
+                messageToast.show();
+            }
         }
     }
 
     public void resumeGPS() {
         if (status == Status.DISABLED) {
             changeStatus(Status.GPS, null);
-        }
-        if (currentBestLocation != null) {
-            pListener.locationChanged(currentBestLocation);
         }
     }
 
@@ -160,54 +145,57 @@ public class PositionManager {
         switch (newStatus) {
             case DISABLED:
                 if (status == Status.GPS) {
-                    locationManager.removeUpdates(gpsLocationListener);
-                    locationManager.removeUpdates(networkLocationListener);
-                    locationManager.removeUpdates(passiveLocationListener);
+                    locationManager.removeUpdates(locationListener);
+                    locationListener = null;
+                    locationManager = null;
                     mHandler.removeCallbacks(gpsTimer);
+                    System.out.println("xx gps disabled");
                 }
                 status = newStatus;
                 return;
             case SIMULATION:
-                if ((simulatedPosition == null) && (currentBestLocation == null)) {
+                if (simulatedPosition == null) {
                     Toast.makeText(mContext,
                             mContext.getResources().getString(R.string.messagePosSimulationFailedNoLocation),
                             Toast.LENGTH_SHORT).show();
                     return;
                 }
                 if (status == Status.GPS) {
-                    locationManager.removeUpdates(gpsLocationListener);
-                    locationManager.removeUpdates(networkLocationListener);
-                    locationManager.removeUpdates(passiveLocationListener);
+                    locationManager.removeUpdates(locationListener);
+                    locationListener = null;
+                    locationManager = null;
                     mHandler.removeCallbacks(gpsTimer);
                 }
-                if (simulatedPosition != null) {
-                    if (simulatedPosition.getLocationObject() != null) {
-                        currentBestLocation = simulatedPosition.getLocationObject();
-                    } else {
-                        currentBestLocation = new Location("gps");
-                        currentBestLocation.setLatitude(simulatedPosition.getLatitude());
-                        currentBestLocation.setLongitude(simulatedPosition.getLongitude());
-                        currentBestLocation.setTime(System.currentTimeMillis());
-                    }
-                    simulationName = simulatedPosition.getName();
-                    settingsManager.storeLastLocation(currentBestLocation);
+                if (settingsManager.useGPSAsBearingSource()) {
+                    settingsManager.setBearingSource(SettingsManager.BearingSource.COMPASS);
+                    messageToast.setText(
+                            mContext.getResources().getString(R.string.messageSwitchedToCompass));
+                    messageToast.show();
                 }
-                pListener.locationChanged(currentBestLocation);
+                if (simulatedPosition.getLocationObject() != null) {
+                    currentBestLocation = simulatedPosition.getLocationObject();
+                } else {
+                    currentBestLocation = new Location("gps");
+                    currentBestLocation.setLatitude(simulatedPosition.getLatitude());
+                    currentBestLocation.setLongitude(simulatedPosition.getLongitude());
+                    currentBestLocation.setTime(System.currentTimeMillis());
+                }
+                simulationName = simulatedPosition.getName();
+                if (pFilteredListener != null)
+                    pFilteredListener.locationChanged(currentBestLocation);
                 simulationActivated = true;
                 status = newStatus;
                 return;
             case GPS:
-                if(gpsProvider != null) {
-                    locationManager.requestLocationUpdates(gpsProvider.getName(), 0l, 0.0f, gpsLocationListener);
-                }
-                if(networkProvider != null) {
-                    locationManager.requestLocationUpdates(networkProvider.getName(), 0l, 0.0f, networkLocationListener);
-                }
-                if(passiveProvider != null) {
-                    locationManager.requestLocationUpdates(passiveProvider.getName(), 0l, 0.0f, passiveLocationListener);
-                }
+                locationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
+                locationListener = new LocationListener();
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 10000, 0, locationListener);
                 gpsTimer.reset();
                 mHandler.postDelayed(gpsTimer, 5000);
+                currentBestLocation = settingsManager.loadLastLocation();
+                if (pFilteredListener != null)
+                    pFilteredListener.locationChanged(currentBestLocation);
                 simulationActivated = false;
                 status = newStatus;
                 return;
@@ -248,7 +236,7 @@ public class PositionManager {
         boolean isNewer = timeDelta > 0;
         boolean isABitNewer = timeDelta > 5000;
         boolean isSignificantlyNewer = timeDelta > 10000;
-        boolean isMuchMuchNewer = timeDelta > 300000;
+        boolean isMuchMuchNewer = timeDelta > 180000;
         // Check whether the new location fix is more or less accurate
         int accuracyDelta = (int) (location.getAccuracy() - currentBestLocation.getAccuracy());
         int accuracyThresholdValue = 15;
@@ -325,9 +313,9 @@ public class PositionManager {
         return provider1.equals(provider2);
     }
 
-    private class ServiceLocationListener implements android.location.LocationListener {
+    private class LocationListener implements android.location.LocationListener {
 
-        private final String tag = ServiceLocationListener.class.getSimpleName();
+        private final String tag = LocationListener.class.getSimpleName();
 
         @Override public void onLocationChanged(Location newLocation) {
             gpsTimer.updateTimeOfLastFix();
@@ -335,7 +323,28 @@ public class PositionManager {
                 currentBestLocation = newLocation;
                 gpsTimer.updateTimeOfLastAcceptedFix();
                 settingsManager.storeLastLocation(currentBestLocation);
-                pListener.locationChanged(currentBestLocation);
+                if (pFilteredListener != null)
+                    pFilteredListener.locationChanged(currentBestLocation);
+                if (newLocation != null
+                        && ! newLocation.getProvider().equals("gps")
+                        && settingsManager.useGPSAsBearingSource()) {
+                    settingsManager.setBearingSource(SettingsManager.BearingSource.COMPASS);
+                    messageToast.setText(
+                            mContext.getResources().getString(R.string.messageSwitchedToCompass));
+                    messageToast.show();
+                }
+                if (pRawGPSListener != null
+                        && System.currentTimeMillis() - lastMatchTime > 5000
+                        && newLocation != null
+                        && newLocation.getProvider().equals("gps")
+                        && newLocation.hasBearing()
+                        && newLocation.hasSpeed()
+                        && newLocation.hasAccuracy()
+                        && ( (newLocation.getSpeed() > 0.66 && newLocation.getAccuracy() < 20.0)
+                            || (newLocation.getSpeed() > 1.33 && newLocation.getAccuracy() < 40.0)) ) {
+                    lastMatchTime = System.currentTimeMillis();
+                    pRawGPSListener.locationChanged(newLocation);
+                }
             }
         }
 
@@ -359,8 +368,8 @@ public class PositionManager {
 
         @Override public void onProviderDisabled(String provider) {
             /* this is called if/when the GPS is disabled in settings */
-            Log.v(tag, "Disabled");
-            pListener.displayGPSSettingsDialog();
+            if (pFilteredListener != null)
+                pFilteredListener.displayGPSSettingsDialog();
         }
 
         @Override public void onProviderEnabled(String provider) {
@@ -377,14 +386,14 @@ public class PositionManager {
         private boolean noAcceptedFixMessage;
 
         public GPSTimer() {
+            this.positionManagementRestarted = false;
+            this.noFixMessage = false;
             reset();
         }
 
         public void reset() {
             this.timeOfLastFix = System.currentTimeMillis();
             this.timeOfLastAcceptedFix = System.currentTimeMillis();
-            this.positionManagementRestarted = false;
-            this.noFixMessage = false;
             this.noAcceptedFixMessage = false;
         }
 

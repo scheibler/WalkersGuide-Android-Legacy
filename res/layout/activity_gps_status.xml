@@ -77,6 +77,13 @@
         android:text="@string/labelCompass" />
 
     <TextView
+        android:id="@+id/labelBearingSource"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="@string/labelBearingSource" />
+
+    <TextView
         android:id="@+id/labelTime"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

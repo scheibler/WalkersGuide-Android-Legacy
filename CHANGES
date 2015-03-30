@@ -1,0 +1,18 @@
+v0.1
+- Initial release
+
+v0.1.1
+- Supports webserver interface v2
+- New device identifier implemented (for example to cancel server processes)
+- EnterAddressActivity: For unclear address input the user can choose from a list with possible matches
+
+v0.2.0: 01.01.2015
+- Supports webserver interface v3
+- user can choose way classes for routing
+
+v0.2.1: 11.03.2015
+- Autodetect compass failure (use GPS bearing when necessary)
+
+v0.3.0: 30.03.2015
+- Enhanced way class support (differentiate between unpaved and unclassified ways)
+- Now it's possible to exclude ways from routing

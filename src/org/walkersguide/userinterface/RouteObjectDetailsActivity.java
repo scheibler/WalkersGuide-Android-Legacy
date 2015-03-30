@@ -1,4 +1,3 @@
-
 package org.walkersguide.userinterface;
 
 import java.util.ArrayList;
@@ -17,17 +16,15 @@ import org.walkersguide.routeobjects.Point;
 import org.walkersguide.routeobjects.RouteObjectWrapper;
 import org.walkersguide.routeobjects.StationPoint;
 import org.walkersguide.routeobjects.TransportSegment;
+import org.walkersguide.sensors.PositionManager;
+import org.walkersguide.sensors.SensorsManager;
 import org.walkersguide.utils.DataDownloader;
 import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.HelperFunctions;
 import org.walkersguide.utils.ObjectParser;
-import org.walkersguide.utils.PositionManager;
 import org.walkersguide.utils.Route;
-import org.walkersguide.utils.SensorsManager;
 import org.walkersguide.utils.SettingsManager;
-import org.walkersguide.utils.SourceRoute;
 
-import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -55,7 +52,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
-public class RouteObjectDetailsActivity extends  Activity {
+public class RouteObjectDetailsActivity extends  AbstractActivity {
 
     private final int spinnerEntrancesId = 29381455;
     private final int wayLayoutId = 11973432;
@@ -74,7 +71,8 @@ public class RouteObjectDetailsActivity extends  Activity {
     private LayoutParams lp;
     private Toast messageToast;
     private RouteObjectWrapper routeObject;
-    private Point currentLocation;
+    private Point currentLocation, lastSpokenLocation;
+    private IntersectionPoint.IntersectionWay nextWay, lastSpokenWay;
     private int currentCompassValue, lastCompassValue;
     private int nextSegmentBearing;
     private int lastIntersectionWay;
@@ -106,6 +104,7 @@ public class RouteObjectDetailsActivity extends  Activity {
         nextSegmentBearing = sender.getExtras().getInt("nextSegmentBearing", -1);
 
         // load route object
+        nextWay = lastSpokenWay = null;
         routeObject = ObjectParser.parseRouteObject(
                 sender.getExtras().getString("route_object") );
         if (routeObject.isEmpty()) {
@@ -130,8 +129,7 @@ public class RouteObjectDetailsActivity extends  Activity {
                 showActionsMenuDialog();
             }
         });
-        if (routeObject.getFootwaySegment() != null
-                || routeObject.getTransportSegment() != null
+        if (routeObject.getTransportSegment() != null
                 || sender.getExtras().getInt("hideActionsButton", 0) == 1) {
             buttonActionMenu.setVisibility(View.GONE);
         }
@@ -186,15 +184,13 @@ public class RouteObjectDetailsActivity extends  Activity {
             // latitude and longitude
             label = new TextView(this);
             label.setLayoutParams(lp);
-            label.setText( String.format(
-                        getResources().getString(R.string.labelLatitudeFormated),
-                        wayPoint.getLatitude() ));
+            label.setText( String.format("%1$s %2$f",
+                    getResources().getString(R.string.labelLatitude), wayPoint.getLatitude() ));
             preferencesLayout.addView(label);
             label = new TextView(this);
             label.setLayoutParams(lp);
-            label.setText( String.format(
-                        getResources().getString(R.string.labelLongitudeFormated),
-                        wayPoint.getLongitude() ));
+            label.setText( String.format("%1$s %2$f",
+                    getResources().getString(R.string.labelLongitude), wayPoint.getLongitude() ));
             preferencesLayout.addView(label);
 
         } else if (routeObject.getIntersection() != null) {
@@ -254,6 +250,19 @@ public class RouteObjectDetailsActivity extends  Activity {
             wayLayout.setOrientation(LinearLayout.VERTICAL);
             wayLayout.setId(wayLayoutId);
             preferencesLayout.addView(wayLayout);
+
+            // calculate next intersection way if we got a positive value for nextSegmentBearing
+            int absValue = 0;
+            int minAbsValue = 360;
+            for (IntersectionPoint.IntersectionWay way : intersection.getSubPoints()) {
+                absValue = Math.abs(nextSegmentBearing - way.getIntersectionBearing());
+                if (absValue > 180)
+                    absValue = 360 - absValue;
+                if (nextSegmentBearing > -1 && absValue < minAbsValue) {
+                    nextWay = way;
+                    minAbsValue = absValue;
+                }
+            }
 
         } else if ((routeObject.getPOI() != null) || (routeObject.getStation() != null)) {
             POIPoint poi;
@@ -319,7 +328,7 @@ public class RouteObjectDetailsActivity extends  Activity {
                 spinnerEntrances.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                     public void onItemSelected(AdapterView<?> parent, View view,
                         int pos, long id) {
-                        updateUserInterface();
+                        updateDistanceAndBearing();
                     }
                     public void onNothingSelected(AdapterView<?> parent) {}
                 });
@@ -536,97 +545,108 @@ public class RouteObjectDetailsActivity extends  Activity {
 
     @Override public void onPause() {
         super.onPause();
-        positionManager.stopGPS();
-        sensorsManager.stopSensors();
+        positionManager.setPositionListener(null);
+        sensorsManager.setSensorsListener(null);
+        if (followWayDownloader != null) {
+            cancelRouteDownloadProcess();
+        }
     }
 
     @Override public void onResume() {
         super.onResume();
         settingsManager = globalData.getSettingsManagerInstance();
         sensorsManager.setSensorsListener(new MySensorsListener());
-        sensorsManager.resumeSensors();
         positionManager.setPositionListener(new MyPositionListener());
-        positionManager.resumeGPS();
     }
 
-    public void updateUserInterface() {
-        // update distance and bearing for all points
-        if (routeObject.getPoint() != null) {
-            TextView labelDistanceAndBearing = (TextView) findViewById(labelDistanceAndBearingId);
-            Point destination;
-            // if the building has an entrance
-            Spinner spinnerEntrances = (Spinner) findViewById(spinnerEntrancesId);
-            if (spinnerEntrances != null) {
-                destination = (POIPoint) spinnerEntrances.getSelectedItem();
-            } else {
-                destination = routeObject.getPoint();
-            }
-            labelDistanceAndBearing.setText( String.format(
+    public void updateDistanceAndBearing() {
+        if (routeObject.getPoint() == null
+                || currentLocation == null) {
+            return;
+        }
+        TextView labelDistanceAndBearing = (TextView) findViewById(labelDistanceAndBearingId);
+        Point destination;
+        // if the building has an entrance
+        Spinner spinnerEntrances = (Spinner) findViewById(spinnerEntrancesId);
+        if (spinnerEntrances != null) {
+            destination = (POIPoint) spinnerEntrances.getSelectedItem();
+        } else {
+            destination = routeObject.getPoint();
+        }
+        labelDistanceAndBearing.setText( String.format(
                     getResources().getString(R.string.labelObjectDistanceAndBearing),
                     currentLocation.distanceTo(destination),
-                    HelperFunctions.getClockDirection(
+                    HelperFunctions.getFormatedDirection(
                         currentLocation.bearingTo(destination) - currentCompassValue) ));
+        if (settingsManager.useGPSAsBearingSource()) {
+            labelDistanceAndBearing.setText(
+                    labelDistanceAndBearing.getText().toString() + " (GPS)");
         }
+    }
 
+    public void updateIntersectionData() {
         // if the current point is an intersection, list all traffic signals and streets
         IntersectionPoint intersection = routeObject.getIntersection();
-        if (intersection != null) {
-            LinearLayout wayLayout = (LinearLayout) findViewById(wayLayoutId);
-            if (wayLayout.getChildCount() > 0)
-                wayLayout.removeAllViews();
-            int index = 1;
-            for (IntersectionPoint.IntersectionWay way : intersection.getSubPoints()) {
-                Button wayTextField = new Button(this);
-                wayTextField.setLayoutParams(lp);
-                wayTextField.setId(index - 1);
-                int diff = Math.abs(nextSegmentBearing - way.getIntersectionBearing());
-                if ( (nextSegmentBearing > -1) && ((diff < 10) || (diff > 350)) ) {
-                    wayTextField.setText( String.format(
+        if (intersection == null
+                || currentLocation == null) {
+            return;
+        }
+        LinearLayout wayLayout = (LinearLayout) findViewById(wayLayoutId);
+        if (wayLayout.getChildCount() > 0)
+            wayLayout.removeAllViews();
+        int index = 1;
+        for (IntersectionPoint.IntersectionWay way : intersection.getSubPoints()) {
+            Button wayTextField = new Button(this);
+            wayTextField.setLayoutParams(lp);
+            wayTextField.setId(index - 1);
+            if (way == nextWay) {
+                wayTextField.setText( String.format(
                             getResources().getString(R.string.labelInterWayDetailsNextWay),
                             index,
-                            HelperFunctions.getFormatedDirection(way.getIntersectionBearing() - currentCompassValue),
+                            HelperFunctions.getFormatedDirection(way.getRelativeBearing()),
                             way.toString() ));
-                } else {
-                    wayTextField.setText( String.format(
+            } else {
+                wayTextField.setText( String.format(
                             getResources().getString(R.string.labelInterWayDetails),
                             index,
-                            HelperFunctions.getFormatedDirection(way.getIntersectionBearing() - currentCompassValue),
+                            HelperFunctions.getFormatedDirection(way.getRelativeBearing()),
                             way.toString() ));
-                }
-                wayTextField.setOnClickListener(new View.OnClickListener() {
-                    public void onClick(View view) {
-                        showChooseWayDialog(view.getId());
-                    }
-                });
-                wayLayout.addView(wayTextField);
-                index++;
             }
-            if (intersection.getTrafficSignalList().size() > 0) {
-                ArrayList<POIPoint> trafficSignalList = new ArrayList<POIPoint>();
-                for(POIPoint signal : intersection.getTrafficSignalList()) {
-                    signal.addBearing( currentLocation.bearingTo(signal) - currentCompassValue);
-                    signal.addDistance( currentLocation.distanceTo(signal) );
-                    trafficSignalList.add(signal);
+            wayTextField.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
+                    showChooseWayDialog(view.getId());
                 }
-                Collections.sort(trafficSignalList);
-                LinearLayout trafficSignalLayout = (LinearLayout) findViewById(trafficSignalLayoutId);
-                if (trafficSignalLayout.getChildCount() > 0)
-                    trafficSignalLayout.removeAllViews();
-                for(POIPoint signal : trafficSignalList) {
-                    TextView signalTextField = new TextView(this);
-                    signalTextField.setLayoutParams(lp);
-                    signalTextField.setText( String.format(
-                                getResources().getString(R.string.labelTrafficSignalDistanceAndBearing),
-                                signal.getDistance(),
-                                HelperFunctions.getClockDirection(signal.getBearing()),
-                                signal.getName() ));
-                    trafficSignalLayout.addView(signalTextField);
-                }
+            });
+            wayLayout.addView(wayTextField);
+            index++;
+        }
+        if (intersection.getTrafficSignalList().size() > 0) {
+            ArrayList<POIPoint> trafficSignalList = new ArrayList<POIPoint>();
+            for(POIPoint signal : intersection.getTrafficSignalList()) {
+                signal.addBearing( currentLocation.bearingTo(signal) - currentCompassValue);
+                signal.addDistance( currentLocation.distanceTo(signal) );
+                trafficSignalList.add(signal);
+            }
+            Collections.sort(trafficSignalList);
+            LinearLayout trafficSignalLayout = (LinearLayout) findViewById(trafficSignalLayoutId);
+            if (trafficSignalLayout.getChildCount() > 0)
+                trafficSignalLayout.removeAllViews();
+            for(POIPoint signal : trafficSignalList) {
+                TextView signalTextField = new TextView(this);
+                signalTextField.setLayoutParams(lp);
+                signalTextField.setText( String.format(
+                            getResources().getString(R.string.labelTrafficSignalDistanceAndBearing),
+                            signal.getDistance(),
+                            HelperFunctions.getFormatedDirection(signal.getBearing()),
+                            signal.getName() ));
+                trafficSignalLayout.addView(signalTextField);
             }
         }
     }
 
     private void showActionsMenuDialog() {
+        Point point = routeObject.getPoint();
+        FootwaySegment footway = routeObject.getFootwaySegment();
         dialog = new Dialog(this);
         dialog.setContentView(R.layout.dialog_scrollable_empty);
         dialog.setCanceledOnTouchOutside(false);
@@ -639,109 +659,139 @@ public class RouteObjectDetailsActivity extends  Activity {
         // heading
         label = new TextView(this);
         label.setLayoutParams(lp);
-        label.setText( String.format(
-                    getResources().getString(R.string.labelActionsRoutePointDescription),
-                    routeObject.getPoint().getName() ));
+        if (point != null)
+            label.setText( String.format(
+                        getResources().getString(R.string.labelActionsRoutePointDescription),
+                        point.getName() ));
+        if (footway != null)
+            label.setText( String.format(
+                        getResources().getString(R.string.labelActionsRoutePointDescription),
+                        footway.getName() ));
         dialogLayout.addView(label);
 
-        Button buttonSimulation = new Button(this);
-        buttonSimulation.setLayoutParams(lp);
-        if ((currentLocation.distanceTo(routeObject.getPoint()) == 0) && (positionManager.getStatus() == PositionManager.Status.SIMULATION)) {
-            buttonSimulation.setText(getResources().getString(R.string.buttonStopSimulation));
-        } else {
-            buttonSimulation.setText(getResources().getString(R.string.buttonPointSimulation));
-        }
-        buttonSimulation.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View view) {
-                if ((currentLocation.distanceTo(routeObject.getPoint()) == 0) && (positionManager.getStatus() == PositionManager.Status.SIMULATION)) {
-                    positionManager.changeStatus(PositionManager.Status.GPS, null);
-                    messageToast.setText(
-                        getResources().getString(R.string.messageSimulationStopped));
-                } else {
-                    positionManager.changeStatus(PositionManager.Status.SIMULATION, routeObject.getPoint());
-                    messageToast.setText(
-                        getResources().getString(R.string.messagePositionSimulated));
-                }
-                messageToast.show();
-                dialog.dismiss();
-            }
-        });
-        dialogLayout.addView(buttonSimulation);
-
-        Button buttonToFavorites = new Button(this);
-        buttonToFavorites.setLayoutParams(lp);
-        if (settingsManager.favoritesContains(routeObject)) {
-            buttonToFavorites.setText(getResources().getString(R.string.buttonToFavoritesClicked));
-        } else {
-            buttonToFavorites.setText(getResources().getString(R.string.buttonToFavorites));
-        }
-        buttonToFavorites.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View view) {
-                if (settingsManager.favoritesContains(routeObject)) {
-                    settingsManager.removePointFromFavorites(routeObject);
-                    messageToast.setText(
-                        getResources().getString(R.string.messageRemovedFromFavorites));
-                } else {
-                    settingsManager.addPointToFavorites(routeObject);
-                    messageToast.setText(
-                        getResources().getString(R.string.messageAddedToFavorites));
-                }
-                messageToast.show();
-                dialog.dismiss();
-            }
-        });
-        dialogLayout.addView(buttonToFavorites);
-
-        // new object
-        label = new TextView(this);
-        label.setLayoutParams(lpMarginTop);
-        label.setText(getResources().getString(R.string.labelAsNewRouteObject));
-        dialogLayout.addView(label);
-        SourceRoute sourceRoute = settingsManager.getRouteRequest();
-        int index = 0;
-        for (RouteObjectWrapper object : sourceRoute.getRouteList()) {
-            Button buttonRouteObject = new Button(this);
-            buttonRouteObject.setLayoutParams(lp);
-            buttonRouteObject.setId(index);
-            if (index == 0) {
-                buttonRouteObject.setText(getResources().getString(R.string.buttonAsNewStartPoint));
-            } else if (index == sourceRoute.getSize()-1) {
-                buttonRouteObject.setText(getResources().getString(R.string.buttonAsNewDestinationPoint));
-            } else if (index % 2 == 0) {
-                if (sourceRoute.getSize() == 5) {
-                    buttonRouteObject.setText(
-                            getResources().getString(R.string.buttonAsNewSingleIntermediatePoint));
-                } else {
-                    buttonRouteObject.setText( String.format(
-                            getResources().getString(R.string.buttonAsNewMultiIntermediatePoint),
-                            (index/2) ));
-                }
-            } else {
-                // skip route segments
-                index += 1;
-                continue;
-            }
-            buttonRouteObject.setOnClickListener(new View.OnClickListener() {
+        if (footway != null) {
+            Button buttonBlockFootwaySegment = new Button(this);
+            buttonBlockFootwaySegment.setLayoutParams(lp);
+            if (settingsManager.footwaySegmentBlocked(footway))
+                buttonBlockFootwaySegment.setText(getResources().getString(R.string.buttonUnblockFootwaySegment));
+            else
+                buttonBlockFootwaySegment.setText(getResources().getString(R.string.buttonBlockFootwaySegment));
+            buttonBlockFootwaySegment.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View view) {
-                    Spinner spinnerEntrances = (Spinner) findViewById(spinnerEntrancesId);
-                    if (spinnerEntrances != null && spinnerEntrances.getSelectedItemPosition() > 0) {
-                        POIPoint entrance = (POIPoint) spinnerEntrances.getSelectedItem();
-                        routeObject.getPoint().setName(routeObject.getPoint().getName()
-                            + " (" + entrance.getName() + ")");
-                        routeObject.getPoint().setLatitude(entrance.getLatitude());
-                        routeObject.getPoint().setLongitude(entrance.getLongitude());
+                    FootwaySegment footway = routeObject.getFootwaySegment();
+                    if (settingsManager.footwaySegmentBlocked(footway)) {
+                        settingsManager.unblockFootwaySegment(footway);
+                    } else {
+                        Intent intent = new Intent(getApplicationContext(), BlockWaySegmentActivity.class);
+                        intent.putExtra("footway_object", footway.toJson().toString());
+                        startActivity(intent);
                     }
-                    SourceRoute sourceRoute = settingsManager.getRouteRequest();
-                    sourceRoute.replaceRouteObjectAtIndex(view.getId(), routeObject);
-                    settingsManager.setRouteRequest(sourceRoute);
-                    Intent resultData = new Intent();
-                    resultData.putExtra("fragment", "start");
-                    setResult(RESULT_OK, resultData);
-                    finish();
+                    dialog.dismiss();
                 }
             });
-            dialogLayout.addView(buttonRouteObject);
-            index += 1;
+            dialogLayout.addView(buttonBlockFootwaySegment);
+        }
+
+        if (point != null) {
+            Button buttonSimulation = new Button(this);
+            buttonSimulation.setLayoutParams(lp);
+            if ((currentLocation.distanceTo(routeObject.getPoint()) == 0) && (positionManager.getStatus() == PositionManager.Status.SIMULATION)) {
+                buttonSimulation.setText(getResources().getString(R.string.buttonStopSimulation));
+            } else {
+                buttonSimulation.setText(getResources().getString(R.string.buttonPointSimulation));
+            }
+            buttonSimulation.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
+                    if ((currentLocation.distanceTo(routeObject.getPoint()) == 0) && (positionManager.getStatus() == PositionManager.Status.SIMULATION)) {
+                        positionManager.changeStatus(PositionManager.Status.GPS, null);
+                        messageToast.setText(
+                            getResources().getString(R.string.messageSimulationStopped));
+                    } else {
+                        positionManager.changeStatus(PositionManager.Status.SIMULATION, routeObject.getPoint());
+                        messageToast.setText(
+                            getResources().getString(R.string.messagePositionSimulated));
+                    }
+                    messageToast.show();
+                    dialog.dismiss();
+                }
+            });
+            dialogLayout.addView(buttonSimulation);
+
+            Button buttonToFavorites = new Button(this);
+            buttonToFavorites.setLayoutParams(lp);
+            if (settingsManager.favoritesContains(routeObject)) {
+                buttonToFavorites.setText(getResources().getString(R.string.buttonToFavoritesClicked));
+            } else {
+                buttonToFavorites.setText(getResources().getString(R.string.buttonToFavorites));
+            }
+            buttonToFavorites.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
+                    if (settingsManager.favoritesContains(routeObject)) {
+                        settingsManager.removePointFromFavorites(routeObject);
+                        messageToast.setText(
+                            getResources().getString(R.string.messageRemovedFromFavorites));
+                    } else {
+                        settingsManager.addPointToFavorites(routeObject);
+                        messageToast.setText(
+                            getResources().getString(R.string.messageAddedToFavorites));
+                    }
+                    messageToast.show();
+                    dialog.dismiss();
+                }
+            });
+            dialogLayout.addView(buttonToFavorites);
+
+            // new object
+            label = new TextView(this);
+            label.setLayoutParams(lpMarginTop);
+            label.setText(getResources().getString(R.string.labelAsNewRouteObject));
+            dialogLayout.addView(label);
+            Route sourceRoute = settingsManager.getRouteRequest();
+            int index = 0;
+            for (RouteObjectWrapper object : sourceRoute.getRouteList()) {
+                Button buttonRouteObject = new Button(this);
+                buttonRouteObject.setLayoutParams(lp);
+                buttonRouteObject.setId(index);
+                if (index == 0) {
+                    buttonRouteObject.setText(getResources().getString(R.string.buttonAsNewStartPoint));
+                } else if (index == sourceRoute.getSize()-1) {
+                    buttonRouteObject.setText(getResources().getString(R.string.buttonAsNewDestinationPoint));
+                } else if (index % 2 == 0) {
+                    if (sourceRoute.getSize() == 5) {
+                        buttonRouteObject.setText(
+                                getResources().getString(R.string.buttonAsNewSingleIntermediatePoint));
+                    } else {
+                        buttonRouteObject.setText( String.format(
+                                    getResources().getString(R.string.buttonAsNewMultiIntermediatePoint),
+                                    (index/2) ));
+                    }
+                } else {
+                    // skip route segments
+                    index += 1;
+                    continue;
+                }
+                buttonRouteObject.setOnClickListener(new View.OnClickListener() {
+                    public void onClick(View view) {
+                        Spinner spinnerEntrances = (Spinner) findViewById(spinnerEntrancesId);
+                        if (spinnerEntrances != null && spinnerEntrances.getSelectedItemPosition() > 0) {
+                            POIPoint entrance = (POIPoint) spinnerEntrances.getSelectedItem();
+                            routeObject.getPoint().setName(routeObject.getPoint().getName()
+                                + " (" + entrance.getName() + ")");
+                            routeObject.getPoint().setLatitude(entrance.getLatitude());
+                            routeObject.getPoint().setLongitude(entrance.getLongitude());
+                        }
+                        Route sourceRoute = settingsManager.getRouteRequest();
+                        sourceRoute.replaceRouteObjectAtIndex(view.getId(), routeObject);
+                        settingsManager.setRouteRequest(sourceRoute);
+                        Intent resultData = new Intent();
+                        resultData.putExtra("fragment", "start");
+                        setResult(RESULT_OK, resultData);
+                        finish();
+                    }
+                });
+                dialogLayout.addView(buttonRouteObject);
+                index += 1;
+            }
         }
 
         Button buttonCancel = new Button(this);
@@ -758,6 +808,10 @@ public class RouteObjectDetailsActivity extends  Activity {
 
     private void showChooseWayDialog(int index) {
         IntersectionPoint.IntersectionWay intersectionWay = routeObject.getIntersection().getSubPoints().get(index);
+        FootwaySegment footway = new FootwaySegment(intersectionWay.getName(), 25,
+            intersectionWay.getIntersectionBearing(), intersectionWay.getSubType());
+        footway.addWayId(intersectionWay.getWayId());
+
         dialog = new Dialog(this);
         dialog.setContentView(R.layout.dialog_scrollable_empty);
         dialog.setCanceledOnTouchOutside(false);
@@ -765,7 +819,7 @@ public class RouteObjectDetailsActivity extends  Activity {
             @Override public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
                 if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
                     if (followWayDownloader != null) {
-                        followWayDownloader.cancelDownloadProcess();
+                        cancelRouteDownloadProcess();
                     }
                     dialog.dismiss();
                 }
@@ -782,6 +836,32 @@ public class RouteObjectDetailsActivity extends  Activity {
         dialogLayout.addView(label);
 
         // buttons
+        Button buttonBlockFootwaySegment = new Button(this);
+        buttonBlockFootwaySegment.setLayoutParams(lp);
+        buttonBlockFootwaySegment.setId(index);
+        if (settingsManager.footwaySegmentBlocked(footway))
+            buttonBlockFootwaySegment.setText(getResources().getString(R.string.buttonUnblockFootwaySegment));
+        else
+            buttonBlockFootwaySegment.setText(getResources().getString(R.string.buttonBlockFootwaySegment));
+        buttonBlockFootwaySegment.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                IntersectionPoint.IntersectionWay intersectionWay = 
+                    routeObject.getIntersection().getSubPoints().get(view.getId());
+                FootwaySegment footway = new FootwaySegment(intersectionWay.getName(), 25,
+                    intersectionWay.getIntersectionBearing(), intersectionWay.getSubType());
+                footway.addWayId(intersectionWay.getWayId());
+                if (settingsManager.footwaySegmentBlocked(footway)) {
+                    settingsManager.unblockFootwaySegment(footway);
+                } else {
+                    Intent intent = new Intent(getApplicationContext(), BlockWaySegmentActivity.class);
+                    intent.putExtra("footway_object", footway.toJson().toString());
+                    startActivity(intent);
+                }
+                dialog.dismiss();
+            }
+        });
+        dialogLayout.addView(buttonBlockFootwaySegment);
+
         Button buttonRoute = new Button(this);
         buttonRoute.setLayoutParams(lp);
         buttonRoute.setId(index);
@@ -816,7 +896,7 @@ public class RouteObjectDetailsActivity extends  Activity {
         buttonCancel.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 if (followWayDownloader != null) {
-                    followWayDownloader.cancelDownloadProcess();
+                    cancelRouteDownloadProcess();
                 }
                 dialog.dismiss();
             }
@@ -844,6 +924,7 @@ public class RouteObjectDetailsActivity extends  Activity {
             optionsJson.put("way_id", intersectionWay.getWayId());
             optionsJson.put("bearing", intersectionWay.getIntersectionBearing());
             optionsJson.put("language", Locale.getDefault().getLanguage());
+            optionsJson.put("session_id", globalData.getSessionId());
             if (allIntersections)
                 optionsJson.put("add_all_intersections", "yes");
             else
@@ -858,7 +939,7 @@ public class RouteObjectDetailsActivity extends  Activity {
             return false;
         }
         if (followWayDownloader != null) {
-            followWayDownloader.cancelDownloadProcess();
+            cancelRouteDownloadProcess();
         }
         followWayDownloader = new DataDownloader(RouteObjectDetailsActivity.this);
         followWayDownloader.setDataDownloadListener(new FollowWayDLListener() );
@@ -868,6 +949,22 @@ public class RouteObjectDetailsActivity extends  Activity {
         Toast.makeText(this, getResources().getString(R.string.messageRouteComputationStarted),
                 Toast.LENGTH_LONG).show();
         return true;
+    }
+
+    private void cancelRouteDownloadProcess() {
+        followWayDownloader.cancelDownloadProcess();
+        JSONObject requestJson = new JSONObject();
+        try {
+            requestJson.put("language", Locale.getDefault().getLanguage());
+            requestJson.put("session_id", globalData.getSessionId());
+        } catch (JSONException e) {
+            return;
+        }
+        followWayDownloader = new DataDownloader(this);
+        followWayDownloader.setDataDownloadListener(new CanceledRequestDownloadListener() );
+        followWayDownloader.execute( "post",
+                globalData.getSettingsManagerInstance().getServerPath() + "/cancel_request",
+                requestJson.toString() );
     }
 
     private class MyPositionListener implements PositionManager.PositionListener {
@@ -880,10 +977,19 @@ public class RouteObjectDetailsActivity extends  Activity {
             if (currentLocation == null
                     || currentLocation.distanceTo(newPoint) > 5) {
                 currentLocation = newPoint;
-                updateUserInterface();
+                updateDistanceAndBearing();
+                updateIntersectionData();
+            }
+            // speak distance from time to time
+            TextView labelDistanceAndBearing = (TextView) findViewById(labelDistanceAndBearingId);
+            if (labelDistanceAndBearing != null
+                    && location.getSpeed() < 3.0
+                    && (lastSpokenLocation == null || currentLocation.distanceTo(lastSpokenLocation) > 15)) {
+                lastSpokenLocation = currentLocation;
+                messageToast.setText(labelDistanceAndBearing.getText().toString());
+                messageToast.show();
             }
         }
-
         public void displayGPSSettingsDialog() {
             Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
             startActivity(intent);
@@ -891,44 +997,43 @@ public class RouteObjectDetailsActivity extends  Activity {
     }
 
     private class MySensorsListener implements SensorsManager.SensorsListener {
-        public void compassChanged(float degree) {
-            currentCompassValue = (int) Math.round(degree);
-            int diff = Math.abs(currentCompassValue - lastCompassValue);
-            if ((diff > 22) && (diff < 338)) {
-                lastCompassValue = currentCompassValue;
-                updateUserInterface();
-            }
-            // speak the intersection street name, which is in front of the user
+        public void compassValueChanged(int degree) {
+            currentCompassValue = degree;
+            updateDistanceAndBearing();
+            // rest is for intersections only
             IntersectionPoint intersection = routeObject.getIntersection();
-            if (currentLocation == null
-                    || intersection == null
-                    || currentLocation.distanceTo(intersection) > 80) {
-                return;
-            }
-            int index = 0;
-            for (IntersectionPoint.IntersectionWay way : intersection.getSubPoints()) {
-                diff = Math.abs( ((int) Math.round(degree)) - way.getIntersectionBearing());
-                if ((diff < 10) || (diff > 350)) {
-                    if (lastIntersectionWay != index) {
-                        messageToast.cancel();
-                        messageToast = Toast.makeText(getApplicationContext(), "", Toast.LENGTH_SHORT);
-                        diff = Math.abs(nextSegmentBearing - way.getIntersectionBearing());
-                        if ( (nextSegmentBearing > -1) && ((diff < 10) || (diff > 350)) ) {
-                            messageToast.setText( String.format(
-                                        getResources().getString(R.string.messageInterWayNameNextPoint),
-                                        way.getName() ));
-                        } else {
-                            messageToast.setText(way.getName());
-                        }
-                        messageToast.show();
-                        lastIntersectionWay = index;
+            int diff = Math.abs(currentCompassValue - lastCompassValue);
+            if (diff > 180)
+                diff = 360 - diff;
+            if (currentLocation != null
+                    && intersection != null
+                    && diff >= 15) {
+                lastCompassValue = currentCompassValue;
+                // sort intersection ways
+                for (IntersectionPoint.IntersectionWay way : intersection.getSubPoints())
+                    way.setRelativeBearing(currentCompassValue);
+                Collections.sort(intersection.getSubPoints());
+                // speak the intersection street name, which is in front of the user
+                IntersectionPoint.IntersectionWay way = intersection.getSubPoints().get(0);
+                String direction = HelperFunctions.getFormatedDirection(way.getRelativeBearing());
+                if (way != lastSpokenWay
+                        && direction.equals(getResources().getString(R.string.directionStraightforward))) {
+                    lastSpokenWay = way;
+                    messageToast.cancel();
+                    messageToast = Toast.makeText(getApplicationContext(), "", Toast.LENGTH_SHORT);
+                    if (way == nextWay) {
+                        messageToast.setText( String.format(
+                                    getResources().getString(R.string.messageInterWayNameNextPoint),
+                                    way.getName() ));
+                    } else {
+                        messageToast.setText(way.getName());
                     }
+                    messageToast.show();
                 }
-                index++;
+                updateIntersectionData();
             }
         }
-
-        public void acceleratorChanged(double accel) {}
+        public void shakeDetected() {}
     }
 
     private class FollowWayDLListener implements DataDownloader.DataDownloadListener {
@@ -1021,6 +1126,13 @@ public class RouteObjectDetailsActivity extends  Activity {
         @Override public void dataDownloadCanceled() {}
     }
 
+    private class CanceledRequestDownloadListener implements DataDownloader.DataDownloadListener {
+        @Override public void dataDownloadedSuccessfully(JSONObject jsonObject) {}
+        @Override public void dataDownloadFailed(String error) {}
+        @Override public void dataDownloadCanceled() {}
+    }
+
+
     public class EntranceListAdapter extends ArrayAdapter<POIPoint> {
         private Context ctx;
         private LayoutInflater m_inflater = null;
@@ -1063,7 +1175,7 @@ public class RouteObjectDetailsActivity extends  Activity {
                         getResources().getString(R.string.labelEntranceDropDown),
                         poi.getName(),
                         currentLocation.distanceTo(poi),
-                        HelperFunctions.getClockDirection(currentLocation.bearingTo(poi)) ));
+                        HelperFunctions.getFormatedDirection(currentLocation.bearingTo(poi)-currentCompassValue) ));
             return convertView;
         }
 

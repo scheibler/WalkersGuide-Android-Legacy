@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 
@@ -16,6 +17,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.walkersguide.R;
 import org.walkersguide.exceptions.RouteParsingException;
+import org.walkersguide.routeobjects.FootwaySegment;
 import org.walkersguide.routeobjects.Point;
 import org.walkersguide.routeobjects.RouteObjectWrapper;
 
@@ -28,15 +30,22 @@ import android.os.Environment;
 
 public class SettingsManager {
 
+    public enum BearingSource {
+        COMPASS, GPS
+    }
+
     // final settings
-    private static final double interfaceVersion = 0.1;
+    private static final int interfaceVersion = 3;
     private static final String programDataFolder = "WalkersGuide";
-    private static final String defaultHostURL = "http://188.40.44.135";
+    private static final String defaultHostURL = "http://walkersguide.org";
     private static final int defaultPort = 19021;
     private static final Double[] routeFactorArray = new Double[]{1.0, 1.5, 2.0, 3.0, 4.0};
     private static final double defaultRouteFactor = 2.0;
+    private static final String[] defaultRoutingWayClasses = new String[]{"big_streets", "small_streets", "paved_ways", "unpaved_ways", "unclassified_ways", "steps"};
     private static final boolean defaultShakeForNextRoutePoint = true;
-    private static final double defaultShakeIntensity = 10.0;
+    private static final int defaultShakeIntensity = 2;
+    private static final BearingSource defaultBearingSource = BearingSource.COMPASS;
+    private static final String emailAddress = "support@walkersguide.org";
 
     private Context mContext;
     private SharedPreferences settings;
@@ -44,18 +53,21 @@ public class SettingsManager {
     private ArrayList<POIPreset> poiPresets;
     private int presetIdInRouterFragment;
     private int presetIdInPoiFragment;
-    private SourceRoute sourceRoute;
+    private Route sourceRoute;
     private HashMap<String,Integer> temporaryStartFragmentSettings;
     private HashMap<String,Integer> temporaryRouterFragmentSettings;
     private HashMap<String,Integer> temporaryPOIFragmentSettings;
     // route vars
     private double routeFactor;
+    private ArrayList<String> routingWayClasses;
     private boolean shakeForNextRoutePoint;
-    private double shakeIntensity;
+    private int shakeIntensity;
+    private BearingSource bearingSource;
     // server vars
     private String hostURL;
     private int port;
     private String mapVersion;
+    private boolean fakeCompassValues;
 
     public SettingsManager(Context context) {
         this.mContext = context;
@@ -63,7 +75,7 @@ public class SettingsManager {
         // general app settings
         this.presetIdInRouterFragment = 0;
         this.presetIdInPoiFragment = 0;
-        this.sourceRoute = new SourceRoute();
+        this.sourceRoute = new Route();
         this.temporaryStartFragmentSettings = new HashMap<String,Integer>();
         this.temporaryRouterFragmentSettings = new HashMap<String,Integer>();
         this.temporaryPOIFragmentSettings = new HashMap<String,Integer>();
@@ -84,6 +96,10 @@ public class SettingsManager {
         File settingsFolder = new File(getProgramSettingsFolder());
         if (!settingsFolder.exists())
             settingsFolder.mkdirs();
+        File importFolder = new File(getProgramImportFolder());
+        if (!importFolder.exists())
+            importFolder.mkdirs();
+        this.fakeCompassValues = false;
     }
 
     /**
@@ -98,7 +114,7 @@ public class SettingsManager {
         }
     }
 
-    public double getInterfaceVersion() {
+    public int getInterfaceVersion() {
         return this.interfaceVersion;
     }
 
@@ -108,6 +124,10 @@ public class SettingsManager {
 
     public void setMapVersion(String version) {
         this.mapVersion = version;
+    }
+
+    public String getEMailAddress() {
+        return this.emailAddress;
     }
 
     public String getProgramLogFolder() {
@@ -120,11 +140,16 @@ public class SettingsManager {
                 + "/" + this.programDataFolder + "/settings";
     }
 
-    public SourceRoute getRouteRequest() {
+    public String getProgramImportFolder() {
+        return Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/" + this.programDataFolder + "/import";
+    }
+
+    public Route getRouteRequest() {
         return this.sourceRoute;
     }
 
-    public void setRouteRequest(SourceRoute route) {
+    public void setRouteRequest(Route route) {
         this.sourceRoute = route;
     }
 
@@ -153,13 +178,12 @@ public class SettingsManager {
     }
 
     public String getServerPath() {
-        String serverPath = this.hostURL + ":" + this.port;
-        if (! serverPath.startsWith("http"))
-            serverPath = "http://" + serverPath;
-        return serverPath;
+        return getHostURL() + ":" + getHostPort();
     }
 
     public String getHostURL() {
+        if (! this.hostURL.startsWith("http"))
+            return "http://" + this.hostURL;
         return this.hostURL;
     }
 
@@ -194,6 +218,15 @@ public class SettingsManager {
         storeApplicationSettings();
     }
 
+    public ArrayList<String> getRoutingWayClasses() {
+        return this.routingWayClasses;
+    }
+
+    public void setRoutingWayClasses(ArrayList<String> classes) {
+        this.routingWayClasses = classes;
+        storeApplicationSettings();
+    }
+
     public boolean getShakeForNextRoutePoint() {
         return this.shakeForNextRoutePoint;
     }
@@ -203,13 +236,41 @@ public class SettingsManager {
         storeApplicationSettings();
     }
 
-    public double getShakeIntensity() {
+    public int getShakeIntensity() {
         return this.shakeIntensity;
     }
 
-    public void setShakeIntensity(double intensity) {
+    public void setShakeIntensity(int intensity) {
         this.shakeIntensity = intensity;
         storeApplicationSettings();
+    }
+
+    public BearingSource getBearingSource() {
+        return this.bearingSource;
+    }
+
+    public void setBearingSource(BearingSource source) {
+        this.bearingSource = source;
+    }
+
+    public boolean useGPSAsBearingSource() {
+        if (this.bearingSource == BearingSource.GPS)
+            return true;
+        return false;
+    }
+
+    public boolean useCompassAsBearingSource() {
+        if (this.bearingSource == BearingSource.COMPASS)
+            return true;
+        return false;
+    }
+
+    public boolean getFakeCompassValues() {
+        return this.fakeCompassValues;
+    }
+
+    public void setFakeCompassValues(boolean b) {
+        this.fakeCompassValues = b;
     }
 
     private void loadApplicationSettings() {
@@ -221,8 +282,13 @@ public class SettingsManager {
             this.hostURL = this.defaultHostURL;
             this.port = this.defaultPort;
             this.routeFactor = this.defaultRouteFactor;
+            this.routingWayClasses = new ArrayList<String>();
+            for (int i=0; i<this.defaultRoutingWayClasses.length; i++) {
+                this.routingWayClasses.add(this.defaultRoutingWayClasses[i]);
+            }
             this.shakeForNextRoutePoint = this.defaultShakeForNextRoutePoint;
             this.shakeIntensity = this.defaultShakeIntensity;
+            this.bearingSource = this.defaultBearingSource;
             storeApplicationSettings();
             return;
         }
@@ -247,14 +313,37 @@ public class SettingsManager {
                 this.routeFactor = defaultRouteFactor;
             }
             try {
+                this.routingWayClasses = new ArrayList<String>();
+                JSONArray jsonWayClassArray = jsonRouteSettings.getJSONArray("routingWayClasses");
+                for (int i=0; i<jsonWayClassArray.length(); i++) {
+                    if (Arrays.asList(this.defaultRoutingWayClasses).contains(jsonWayClassArray.getString(i)))
+                        this.routingWayClasses.add(jsonWayClassArray.getString(i));
+                }
+            } catch (JSONException e) {
+                this.routingWayClasses = new ArrayList<String>();
+                for (int i=0; i<this.defaultRoutingWayClasses.length; i++) {
+                    this.routingWayClasses.add(this.defaultRoutingWayClasses[i]);
+                }
+            }
+            try {
                 this.shakeForNextRoutePoint = jsonRouteSettings.getBoolean("shakeForNextRoutePoint");
             } catch (JSONException e) {
                 this.shakeForNextRoutePoint = defaultShakeForNextRoutePoint;
             }
             try {
-                this.shakeIntensity = jsonRouteSettings.getDouble("shakeIntensity");
+                this.shakeIntensity = jsonRouteSettings.getInt("shakeIntensity");
+                if (this.shakeIntensity < 0 || this.shakeIntensity > 4)
+                    this.shakeIntensity = defaultShakeIntensity;
             } catch (JSONException e) {
                 this.shakeIntensity = defaultShakeIntensity;
+            }
+            try {
+                if (jsonRouteSettings.getString("bearingSource").equals(BearingSource.GPS.name()))
+                    this.bearingSource = BearingSource.GPS;
+                else
+                    this.bearingSource = BearingSource.COMPASS;
+            } catch (JSONException e) {
+                this.bearingSource = defaultBearingSource;
             }
             // misc settings
             JSONObject jsonMiscSettings = jsonApplicationSettingsObject.getJSONObject("misc");
@@ -288,8 +377,10 @@ public class SettingsManager {
         try {
             JSONObject jsonRouteSettingsObject  = new JSONObject();
             jsonRouteSettingsObject.put("routeFactor", this.routeFactor);
+            jsonRouteSettingsObject.put("routingWayClasses", new JSONArray(this.routingWayClasses));
             jsonRouteSettingsObject.put("shakeForNextRoutePoint", this.shakeForNextRoutePoint);
             jsonRouteSettingsObject.put("shakeIntensity", this.shakeIntensity);
+            jsonRouteSettingsObject.put("bearingSource", this.defaultBearingSource.name());
             jsonApplicationSettingsObject.put("route", jsonRouteSettingsObject);
         } catch (JSONException e) {
             System.out.println("route settings couldn't be saved\n" + e.getMessage());
@@ -504,13 +595,13 @@ public class SettingsManager {
      */
 
     // source route history
-    public ArrayList<SourceRoute> loadSourceRoutesFromHistory() {
+    public ArrayList<Route> loadSourceRoutesFromHistory() {
         System.out.println("xx load sourceroutelist size = " + loadSourceRoutes().size());
         return loadSourceRoutes();
     }
 
-    public void addSourceRouteToHistory(SourceRoute sourceRoute) {
-        ArrayList<SourceRoute> sourceRouteList = loadSourceRoutes();
+    public void addSourceRouteToHistory(Route sourceRoute) {
+        ArrayList<Route> sourceRouteList = loadSourceRoutes();
         if (sourceRouteList.contains(sourceRoute)) {
             sourceRoute = sourceRouteList.get( sourceRouteList.indexOf(sourceRoute) );
             sourceRouteList.remove(sourceRoute);
@@ -519,8 +610,8 @@ public class SettingsManager {
         storeSourceRoutes(sourceRouteList);
     }
 
-    public void removeSourceRouteFromHistory(SourceRoute sourceRoute) {
-        ArrayList<SourceRoute> sourceRouteList = loadSourceRoutes();
+    public void removeSourceRouteFromHistory(Route sourceRoute) {
+        ArrayList<Route> sourceRouteList = loadSourceRoutes();
         if (sourceRouteList.contains(sourceRoute)) {
             sourceRouteList.remove(sourceRoute);
             storeSourceRoutes(sourceRouteList);
@@ -528,18 +619,17 @@ public class SettingsManager {
     }
 
     public void clearSourceRouteHistory() {
-        storeSourceRoutes(new ArrayList<SourceRoute>());
+        storeSourceRoutes(new ArrayList<Route>());
     }
 
-    private ArrayList<SourceRoute> loadSourceRoutes() {
-        ArrayList<SourceRoute> sourceRouteList = new ArrayList<SourceRoute>();
+    private ArrayList<Route> loadSourceRoutes() {
+        ArrayList<Route> sourceRouteList = new ArrayList<Route>();
         try {
         	JSONArray jsonSourceRouteList = new JSONArray( settings.getString("sourceRoutes", "[]"));
             for (int index=0; index<jsonSourceRouteList.length(); index++) {
                 try {
-                    ArrayList<RouteObjectWrapper> list = ObjectParser.parseRouteArray( jsonSourceRouteList.getJSONArray(index));
                     sourceRouteList.add(
-                            new SourceRoute(
+                            new Route(
                                 ObjectParser.parseRouteArray( jsonSourceRouteList.getJSONArray(index)) ));
                 } catch (RouteParsingException re) {
                     continue;
@@ -551,13 +641,67 @@ public class SettingsManager {
         return sourceRouteList;
     }
 
-    private void storeSourceRoutes(ArrayList<SourceRoute> sourceRouteList) {
+    private void storeSourceRoutes(ArrayList<Route> sourceRouteList) {
         JSONArray jsonSourceRouteList = new JSONArray();
-        for (SourceRoute s : sourceRouteList) {
+        for (Route s : sourceRouteList) {
             jsonSourceRouteList.put( s.toJson() );
         }
         Editor editor = this.settings.edit();
         editor.putString("sourceRoutes", jsonSourceRouteList.toString());
+        editor.commit();
+    }
+
+    // blocked ways
+    public boolean footwaySegmentBlocked(FootwaySegment footway) {
+        ArrayList<FootwaySegment> blockedWays = loadBlockedWays();
+        if (blockedWays.contains(footway))
+            return true;
+        return false;
+    }
+
+    public void blockFootwaySegment(FootwaySegment footway) {
+        ArrayList<FootwaySegment> blockedWays = loadBlockedWays();
+        if (blockedWays.contains(footway)) {
+            blockedWays.remove(footway);
+        }
+        blockedWays.add(0, footway);
+        storeBlockedWays(blockedWays);
+    }
+
+    public void unblockFootwaySegment(FootwaySegment footway) {
+        ArrayList<FootwaySegment> blockedWays = loadBlockedWays();
+        if (blockedWays.contains(footway)) {
+            blockedWays.remove(footway);
+            storeBlockedWays(blockedWays);
+        }
+    }
+
+    public void clearBlockedWays() {
+        storeBlockedWays(new ArrayList<FootwaySegment>());
+    }
+
+    public ArrayList<FootwaySegment> loadBlockedWays() {
+        ArrayList<FootwaySegment> blockedWays = new ArrayList<FootwaySegment>();
+        try {
+        	JSONArray jsonBlockedWays = new JSONArray( settings.getString("blockedWays", "[]"));
+            for (int index=0; index<jsonBlockedWays.length(); index++) {
+                FootwaySegment footway = ObjectParser.parseFootway( jsonBlockedWays.getJSONObject(index));
+                if (footway != null)
+                    blockedWays.add(footway);
+            }
+        } catch (JSONException e) {
+            return blockedWays;
+        }
+        return blockedWays;
+    }
+
+    private void storeBlockedWays(ArrayList<FootwaySegment> blockedWays) {
+        JSONArray jsonBlockedWays = new JSONArray();
+        for (FootwaySegment f : blockedWays) {
+            jsonBlockedWays.put( f.toJson() );
+        }
+        Editor editor = this.settings.edit();
+        editor.putString("blockedWays", jsonBlockedWays.toString());
         editor.commit();
     }
 

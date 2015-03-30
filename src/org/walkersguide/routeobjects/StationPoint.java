@@ -14,13 +14,13 @@ public class StationPoint extends POIPoint {
 
     private ArrayList<Line> lines;
     private int stationID;
-    private boolean foundInOSMDatabase;
+    private int foundInOSMDatabase;
     private String platformNumber;
 
-    public StationPoint(String name, Double lat, Double lon, String subType, boolean acc) {
+    public StationPoint(String name, Double lat, Double lon, String subType) {
     	super(name, lat, lon, "station", subType);
         this.lines = new ArrayList<Line>();
-        this.foundInOSMDatabase = acc;
+        this.foundInOSMDatabase = -1;
         this.platformNumber = "";
     }
 
@@ -41,10 +41,13 @@ public class StationPoint extends POIPoint {
     }
 
     public void addFoundInOSMDatabase(boolean b) {
-        this.foundInOSMDatabase = b;
+        if (b)
+            this.foundInOSMDatabase = 1;
+        else
+            this.foundInOSMDatabase = 0;
     }
 
-    public boolean getFoundInOSMDatabase() {
+    public int getFoundInOSMDatabase() {
         return this.foundInOSMDatabase;
     }
 
@@ -61,6 +64,13 @@ public class StationPoint extends POIPoint {
         if (!this.platformNumber.equals(""))
             s += String.format( Globals.getContext().getResources().getString(R.string.roStationPlatformNumber),
                     this.getPlatformNumber() );
+        if (super.getEntranceList().size() == 1) {
+            s += Globals.getContext().getResources().getString(R.string.roPointOneEntrance);
+        } else if (super.getEntranceList().size() > 1) {
+            s += String.format(
+                    Globals.getContext().getResources().getString(R.string.roPointMultipleEntrances),
+                    super.getEntranceList().size() );
+        }
         if (this.lines.size() > 0) {
             String lines = "";
             for (Line l : this.lines) {
@@ -73,12 +83,16 @@ public class StationPoint extends POIPoint {
             s += String.format(
                     Globals.getContext().getResources().getString(R.string.roStationLines), lines);
         }
-        if (this.foundInOSMDatabase) {
+        if (this.foundInOSMDatabase == 0) {
+            s += Globals.getContext().getResources().getString(R.string.roStationNoExactStopPosition);
+        } else if (this.foundInOSMDatabase == 1) {
             s += Globals.getContext().getResources().getString(R.string.roStationExactStopPosition);
         }
         if (super.getDistance() >= 0 && super.getBearing() >= 0) {
             s += String.format( Globals.getContext().getResources().getString(R.string.roPointDistanceAndBearing),
-                    super.getDistance(), HelperFunctions.getClockDirection(super.getBearing()) );
+                    super.getDistance(), HelperFunctions.getFormatedDirection(super.getBearing()) );
+            if (((Globals) Globals.getContext()).getSettingsManagerInstance().useGPSAsBearingSource())
+                s += " (GPS)";
         } else if (super.getDistance() >= 0) {
             s += String.format( Globals.getContext().getResources().getString(R.string.roPointDistance),
                     super.getDistance() );
@@ -100,7 +114,11 @@ public class StationPoint extends POIPoint {
             jsonObject.put("lines", linesArray);
         } catch (JSONException e) {}
         try {
-            jsonObject.put("found_in_osm_database", this.foundInOSMDatabase);
+            if (this.foundInOSMDatabase == 0) {
+                jsonObject.put("accuracy", false);
+            } else if (this.foundInOSMDatabase == 1) {
+                jsonObject.put("accuracy", true);
+            }
         } catch (JSONException e) {}
         if (this.stationID > -1) {
             try {

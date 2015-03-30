@@ -1,9 +1,17 @@
 package org.walkersguide.utils;
 
 import java.util.HashMap;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.UUID;
+
+import org.walkersguide.R;
+import org.walkersguide.sensors.PositionManager;
+import org.walkersguide.sensors.SensorsManager;
 
 import android.app.Application;
 import android.content.Context;
+import android.media.MediaPlayer;
 
 /**
  * global values which are used to communicate between fragments and activities
@@ -18,16 +26,22 @@ public class Globals extends Application {
 
     private HashMap<String, Object> memory = new HashMap<String, Object>();
     private static Context applicationContext;
+    private String uniqueId;
     private SettingsManager settingsManagerInstance = null;
     private PositionManager positionManagerInstance;
     private SensorsManager sensorsManagerInstance;
     private POIManager poiManagerInstance;
     private AddressManager addressManagerInstance;
     private KeyboardManager keyboardManagerInstance;
-    private CompassCalibrationValidator compasscalibrationvalidatorInstance;
+
+    private Timer mActivityTransitionTimer;
+    private TimerTask mActivityTransitionTimerTask;
+    private boolean wasInBackground;
+    private final long MAX_ACTIVITY_TRANSITION_TIME_MS = 2000;
 
     @Override public void onCreate() {
         super.onCreate();
+        wasInBackground = false;
         applicationContext = this;
     }
 
@@ -41,6 +55,24 @@ public class Globals extends Application {
 
     public static Context getContext() {
         return applicationContext;
+    }
+
+    public String getSessionId() {
+        if (uniqueId == null)
+            uniqueId = UUID.randomUUID().toString();
+        return uniqueId;
+    }
+
+    public void killSessionId() {
+        uniqueId = null;
+    }
+
+    public boolean applicationInBackground() {
+        return this.wasInBackground;
+    }
+
+    public void setApplicationInBackground(boolean b) {
+        this.wasInBackground = b;
     }
 
     public SettingsManager getSettingsManagerInstance() {
@@ -83,10 +115,31 @@ public class Globals extends Application {
         return this.keyboardManagerInstance;
     }
 
-    public CompassCalibrationValidator getCompasscalibrationvalidatorInstance() {
-        if (this.compasscalibrationvalidatorInstance == null)
-            this.compasscalibrationvalidatorInstance = new CompassCalibrationValidator(getApplicationContext());
-        return this.compasscalibrationvalidatorInstance;
+    public void startActivityTransitionTimer() {
+        this.mActivityTransitionTimer = new Timer();
+        this.mActivityTransitionTimerTask = new TimerTask() {
+            public void run() {
+                // is run, when application was sent to background or the screen was turned off
+                Globals globalData = ((Globals) Globals.getContext());
+                globalData.setApplicationInBackground(true);
+                globalData.getPositionManagerInstance().stopGPS();
+                globalData.getSensorsManagerInstance().stopSensors();
+                //MediaPlayer mp = MediaPlayer.create(globalData.getContext(), R.raw.paused);
+                //mp.start();
+                //System.out.println("xxx background entered");
+            }
+        };
+        this.mActivityTransitionTimer.schedule(mActivityTransitionTimerTask,
+                MAX_ACTIVITY_TRANSITION_TIME_MS);
     }
 
+    public void stopActivityTransitionTimer() {
+        if (this.mActivityTransitionTimerTask != null) {
+            this.mActivityTransitionTimerTask.cancel();
+        }
+        if (this.mActivityTransitionTimer != null) {
+            this.mActivityTransitionTimer.cancel();
+        }
+        setApplicationInBackground(false);
+    }
 }
