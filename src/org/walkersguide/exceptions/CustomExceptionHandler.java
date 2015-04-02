@@ -24,6 +24,7 @@ import org.walkersguide.utils.SettingsManager;
 
 import android.content.Context;
 import android.os.Environment;
+import android.text.TextUtils;
 import android.widget.Toast;
 
 
@@ -53,13 +54,21 @@ public class CustomExceptionHandler implements UncaughtExceptionHandler {
         printWriter.close();
         String filename = timestamp + ".log";
 
+        // create bug report with some general information about the program and the stacktrace
+        String bugReport = String.format(
+                "Bug report\n\nCreated at: %s\nClient version: %s\nWebserver interface version: %d\n" +
+                "Route indirection factor: %.1f\nWay classes: %s\n\nStacktrace:\n%s",
+                timestamp, settingsManager.getClientVersion(),
+                settingsManager.getInterfaceVersion(), settingsManager.getRouteFactor(),
+                TextUtils.join(", ", settingsManager.getRoutingWayClasses()), stacktrace);
+
         if (logPath != null) {
             if ( checkSDCardStatus() == 2) {
-                writeToFile(stacktrace, filename);
+                writeToFile(bugReport, filename);
             }
         }
         if (url != null) {
-            sendToServer(stacktrace, filename);
+            sendToServer(bugReport, filename);
         }
         defaultUEH.uncaughtException(t, e);
     }
