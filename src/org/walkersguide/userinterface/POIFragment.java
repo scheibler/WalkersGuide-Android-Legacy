@@ -855,17 +855,17 @@ public class POIFragment extends Fragment {
             buttonRefresh.setTag(1);
             updateUserInterface();
         }
-        boolean isInsidePublicTransport = false;
-        if (numberOfHighSpeeds > 0)
-            isInsidePublicTransport = true;
         // if the monitor is activated, use the last compass value, otherwise the poi list refreshes
         // much to often
         if ((Integer) buttonRefresh.getTag() == 2) {
+            boolean isInsidePublicTransport = false;
+            if (numberOfHighSpeeds > 0)
+                isInsidePublicTransport = true;
             poiManager.updatePOIList(settingsManager.getPresetIdInPoiFragment(), currentRadius,
                     currentLocation, lastCompassValue, currentSearchString, isInsidePublicTransport);
         } else {
             poiManager.updatePOIList(settingsManager.getPresetIdInPoiFragment(), currentRadius,
-                    currentLocation, currentCompassValue, currentSearchString, isInsidePublicTransport);
+                    currentLocation, currentCompassValue, currentSearchString, false);
         }
     }
 
