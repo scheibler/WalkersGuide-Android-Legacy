@@ -2,18 +2,21 @@ package org.walkersguide.userinterface;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import org.walkersguide.R;
 import org.walkersguide.routeobjects.FootwaySegment;
 import org.walkersguide.routeobjects.Point;
 import org.walkersguide.routeobjects.RouteObjectWrapper;
 import org.walkersguide.sensors.PositionManager;
+import org.walkersguide.utils.FilterableAdapter;
 import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.Route;
 import org.walkersguide.utils.SettingsManager;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.location.Location;
@@ -30,6 +33,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Filter;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
 import android.widget.ListView;
@@ -112,19 +116,37 @@ public class HistoryActivity extends AbstractActivity {
         editSearch.addTextChangedListener(new TextWatcher() {
             @Override public void onTextChanged(CharSequence cs, int arg1, int arg2, int arg3) {
                 ListView listview = (ListView) mainLayout.findViewById(R.id.listHistory);
-                if (activeSubView == SubView.ROUTES) {
-                    ArrayAdapter<Route> routeAdapter = (ArrayAdapter<Route>) listview.getAdapter();
-                    routeAdapter.getFilter().filter(cs);
-                } else if (activeSubView == SubView.BLOCKEDWAYS) {
-                    ArrayAdapter<FootwaySegment> blockedAdapter = (ArrayAdapter<FootwaySegment>) listview.getAdapter();
-                    blockedAdapter.getFilter().filter(cs);
-                } else if (activeSubView == SubView.FAVORITEPOINTS) {
-                    ArrayAdapter<Point> favoriteAdapter = (ArrayAdapter<Point>) listview.getAdapter();
-                    favoriteAdapter.getFilter().filter(cs);
-                } else if (activeSubView == SubView.ROUTEPOINTS) {
-                    ArrayAdapter<Point> routePointAdapter = (ArrayAdapter<Point>) listview.getAdapter();
-                    routePointAdapter.getFilter().filter(cs);
-                }
+                SimpleFilterableAdapter<Object> adapter = (SimpleFilterableAdapter<Object>) listview.getAdapter();
+                adapter.getFilter().filter(cs, new Filter.FilterListener() {
+                    public void onFilterComplete(int count) {
+                        EditText editSearch = (EditText) mainLayout.findViewById(R.id.editSearch);
+                        TextView textViewEmptyListView = (TextView) mainLayout.findViewById(R.id.labelEmptyList);
+                        if (count == 0) {
+                            if (activeSubView == SubView.ROUTES) {
+                                textViewEmptyListView.setText(
+                                        getResources().getString(R.string.labelNoRoutesInHistory));
+                            } else if (activeSubView == SubView.BLOCKEDWAYS) {
+                                textViewEmptyListView.setText(
+                                        getResources().getString(R.string.labelNoBlockedWaysInHistory));
+                            } else if (activeSubView == SubView.FAVORITEPOINTS) {
+                                textViewEmptyListView.setText(
+                                        getResources().getString(R.string.labelNoFavoritePointsInHistory));
+                            } else if (activeSubView == SubView.ROUTEPOINTS) {
+                                textViewEmptyListView.setText(
+                                        getResources().getString(R.string.labelNoRoutePointsInHistory));
+                            }
+                            messageToast.setText(textViewEmptyListView.getText().toString());
+                        } else {
+                            textViewEmptyListView.setText("");
+                            ListView listview = (ListView) mainLayout.findViewById(R.id.listHistory);
+                            SimpleFilterableAdapter<Object> adapter =
+                                (SimpleFilterableAdapter<Object>) listview.getAdapter();
+                            messageToast.setText(adapter.getItem(0).toString());
+                        }
+                        if (! editSearch.getText().toString().equals(""))
+                            messageToast.show();
+                    }
+                });
             }
             @Override public void beforeTextChanged(CharSequence arg0, int arg1, int arg2, int arg3) {}
             @Override public void afterTextChanged(Editable arg0) {}
@@ -197,22 +219,23 @@ public class HistoryActivity extends AbstractActivity {
                 return true;
             }
         });
+        TextView textViewEmptyListView = (TextView) mainLayout.findViewById(R.id.labelEmptyList);
+        listview.setEmptyView(textViewEmptyListView);
+
         updateUserInterface();
     }
 
-    private void updateUserInterface() {
+    private synchronized void updateUserInterface() {
         TextView labelHeader = (TextView) mainLayout.findViewById(R.id.labelHeader);
         RadioGroup radioHistorySource = (RadioGroup) findViewById(R.id.radioHistorySource);
         if (showButtons) {
             labelHeader.setVisibility(View.GONE);
             radioHistorySource.setVisibility(View.VISIBLE);
         } else {
-            System.out.println("xx active subview = " + activeSubView);
             if (activeSubView == SubView.ROUTES) {
                 labelHeader.setText(getResources().getString(R.string.labelHistoryActivityRouteHeading));
             } else if (activeSubView == SubView.BLOCKEDWAYS) {
                 labelHeader.setText(getResources().getString(R.string.labelHistoryActivityBlockedWaysHeading));
-                System.out.println("xx blocked ways");
             } else if (activeSubView == SubView.FAVORITEPOINTS) {
                 labelHeader.setText(getResources().getString(R.string.labelHistoryActivityFavoritePointHeading));
             } else {
@@ -224,17 +247,17 @@ public class HistoryActivity extends AbstractActivity {
 
         ListView listview = (ListView) mainLayout.findViewById(R.id.listHistory);
         if (activeSubView == SubView.ROUTES) {
-            ArrayAdapter<Route> routeAdapter = new ArrayAdapter<Route>(this,
+            SimpleFilterableAdapter<Route> routeAdapter = new SimpleFilterableAdapter<Route>(this,
                     android.R.layout.simple_list_item_1, settingsManager.loadSourceRoutesFromHistory() );
             listview.setAdapter(routeAdapter);
         } else if (activeSubView == SubView.BLOCKEDWAYS) {
-            ArrayAdapter<FootwaySegment> blockedAdapter = new ArrayAdapter<FootwaySegment>(this,
+            SimpleFilterableAdapter<FootwaySegment> blockedAdapter = new SimpleFilterableAdapter<FootwaySegment>(this,
                     android.R.layout.simple_list_item_1, settingsManager.loadBlockedWays() );
             listview.setAdapter(blockedAdapter);
         } else {
             ArrayList<Point> pointList;
             if (activeSubView == SubView.FAVORITEPOINTS) {
-                pointList = settingsManager.loadPointsFromFaorites();
+                pointList = settingsManager.loadPointsFromFavorites();
             } else {
                 pointList = settingsManager.loadPointsFromHistory();
             }
@@ -243,30 +266,10 @@ public class HistoryActivity extends AbstractActivity {
                     point.addDistance(currentLocation.distanceTo(point));
             }
             Collections.sort(pointList);
-            ArrayAdapter<Point> pointAdapter = new ArrayAdapter<Point>(this,
+            SimpleFilterableAdapter<Point> pointAdapter = new SimpleFilterableAdapter<Point>(this,
                     android.R.layout.simple_list_item_1, pointList);
             listview.setAdapter(pointAdapter);
         }
-        // if there are no list entrys
-        TextView textViewEmptyListView = (TextView) mainLayout.findViewById(R.id.labelEmptyList);
-        if (activeSubView == SubView.ROUTES) {
-            if (settingsManager.loadSourceRoutesFromHistory().size() == 0)
-                textViewEmptyListView.setText(
-                        getResources().getString(R.string.labelNoRoutesInHistory));
-        } else if (activeSubView == SubView.BLOCKEDWAYS) {
-            if (settingsManager.loadBlockedWays().size() == 0)
-                textViewEmptyListView.setText(
-                        getResources().getString(R.string.labelNoBlockedWaysInHistory));
-        } else if (activeSubView == SubView.FAVORITEPOINTS) {
-            if (settingsManager.loadPointsFromFaorites().size() == 0)
-                textViewEmptyListView.setText(
-                        getResources().getString(R.string.labelNoFavoritePointsInHistory));
-        } else {
-            if (settingsManager.loadPointsFromHistory().size() == 0)
-                textViewEmptyListView.setText(
-                        getResources().getString(R.string.labelNoRoutePointsInHistory));
-        }
-        listview.setEmptyView(textViewEmptyListView);
 
         EditText editSearch = (EditText) mainLayout.findViewById(R.id.editSearch);
         editSearch.setText(editSearch.getText().toString());
@@ -752,4 +755,18 @@ public class HistoryActivity extends AbstractActivity {
         }
     }
 
+    private class SimpleFilterableAdapter<ObjectType> extends FilterableAdapter<ObjectType, String> {
+        public SimpleFilterableAdapter(Context context, int resourceId, List<ObjectType> objects) {
+            super(context, resourceId, objects);
+        }
+        @Override protected String prepareFilter(CharSequence seq) {
+            return seq.toString().toLowerCase();
+        }
+        @Override protected boolean passesFilter(ObjectType object, String constraint) {
+            String repr = object.toString().toLowerCase();
+            if (repr.contains(constraint))
+                return true;
+            return false;
+        }
+    }
 }

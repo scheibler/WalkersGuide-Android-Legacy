@@ -367,10 +367,10 @@
     <string name="buttonHistoryRoutePoints">Points</string>
     <string name="buttonHistoryFavoritePoints">Favorites</string>
     <string name="buttonHistoryBlockedWays">Blocked ways</string>
-    <string name="labelNoRoutesInHistory">Route history is empty</string>
-    <string name="labelNoRoutePointsInHistory">Point history is empty</string>
-    <string name="labelNoFavoritePointsInHistory">Favorite list is empty</string>
-    <string name="labelNoBlockedWaysInHistory">Blocked way list is empty</string>
+    <string name="labelNoRoutesInHistory">Found no routes</string>
+    <string name="labelNoRoutePointsInHistory">Found no route points</string>
+    <string name="labelNoFavoritePointsInHistory">Found no favorites</string>
+    <string name="labelNoBlockedWaysInHistory">Found no blocked ways</string>
     <string name="hintEnterHistorySearch">Search for items</string>
 
     <!-- Dialog: SourceRouteDetailsDialog -->

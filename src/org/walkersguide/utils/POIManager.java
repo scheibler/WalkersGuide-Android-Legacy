@@ -177,7 +177,7 @@ public class POIManager {
         // favorites
         if (preset.getTags().contains("favorites")) {
             String searchPattern = "(.*)" + preset.getLastSearchString().toLowerCase().replace(" ", "(.*)") + "(.*)";
-            for(Point poi : settingsManager.loadPointsFromFaorites()) {
+            for(Point poi : settingsManager.loadPointsFromFavorites()) {
                 if (sortedPOIList.contains(poi))
                     continue;
                 poi.addDistance( preset.getLastLocation().distanceTo(poi) );

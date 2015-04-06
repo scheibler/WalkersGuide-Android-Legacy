@@ -759,12 +759,12 @@ public class SettingsManager {
     }
 
     // favorites
-    public ArrayList<Point> loadPointsFromFaorites() {
+    public ArrayList<Point> loadPointsFromFavorites() {
         return loadPointList("pointsFromFavorites");
     }
 
     public void addPointToFavorites(Point point) {
-        ArrayList<Point> pointsFromFavorites = this.loadPointsFromFaorites();
+        ArrayList<Point> pointsFromFavorites = this.loadPointsFromFavorites();
         if (pointsFromFavorites.contains(point)) {
             pointsFromFavorites.remove(point);
         }
@@ -785,7 +785,7 @@ public class SettingsManager {
     }
 
     public boolean favoritesContains(Point point) {
-        ArrayList<Point> pointsFromFavorites = this.loadPointsFromFaorites();
+        ArrayList<Point> pointsFromFavorites = this.loadPointsFromFavorites();
         if (pointsFromFavorites.contains(point))
             return true;
         return false;
@@ -805,7 +805,7 @@ public class SettingsManager {
     }
 
     public void removePointFromFavorites(Point point) {
-        ArrayList<Point> pointsFromFavorites = this.loadPointsFromFaorites();
+        ArrayList<Point> pointsFromFavorites = this.loadPointsFromFavorites();
         if (pointsFromFavorites.contains(point)) {
             pointsFromFavorites.remove(point);
             storePointList(pointsFromFavorites, "pointsFromFavorites");

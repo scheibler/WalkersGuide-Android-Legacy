@@ -371,10 +371,10 @@
     <string name="buttonHistoryRoutePoints">Routenpunkte</string>
     <string name="buttonHistoryFavoritePoints">Favoriten</string>
     <string name="buttonHistoryBlockedWays">Blockierte Wege</string>
-    <string name="labelNoRoutesInHistory">Bisher wurden keine Routen gespeichert</string>
-    <string name="labelNoRoutePointsInHistory">Bisher wurden keine Punkte gespeichert</string>
-    <string name="labelNoFavoritePointsInHistory">Bisher wurden keine Favoriten angelegt</string>
-    <string name="labelNoBlockedWaysInHistory">Bisher wurden keine Wege vom Routing ausgeschlossen</string>
+    <string name="labelNoRoutesInHistory">Keine Routen gefunden</string>
+    <string name="labelNoRoutePointsInHistory">Keine Routenpunkte gefunden</string>
+    <string name="labelNoFavoritePointsInHistory">Keine Favoriten gefunden</string>
+    <string name="labelNoBlockedWaysInHistory">Keine vom Routing ausgeschlossene Wege gefunden</string>
     <string name="hintEnterHistorySearch">Nach Einträgen suchen</string>
 
     <!-- Dialog: SourceRouteDetailsDialog -->
