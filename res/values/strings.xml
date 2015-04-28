@@ -150,8 +150,8 @@
     <string name="messagePointDescStationInterTurn">. Now turn %s.</string>
     <string name="messagePointDescStationDestination">Destination point: %s</string>
     <string name="messagePointDescWayPointStart">Starting point is a way point.</string>
-    <string name="messagePointDescWayPointInterAhead">Move straight ahead and follow the current way.</string>
-    <string name="messagePointDescWayPointInterTurn">Turn %s and follow the current way.</string>
+    <string name="messagePointDescWayPointInterAhead">Then move straight ahead and follow the current way.</string>
+    <string name="messagePointDescWayPointInterTurn">Then turn %s and follow the current way.</string>
     <string name="messagePointDescWayPointDestination">This way point is your destination.</string>
     <string name="messageNoFurtherRoutePoint">No further route point available.</string>
     <string name="messageFirstRoutePoint">First route point already chosen</string>
@@ -521,7 +521,7 @@
 
     <!-- Class: ObjectParser -->
     <string name="messageRouteObjectParsingError">Invalid route: One or multiple route objects could not be parsed</string>
-    <string name="messageUnsupportedRouteObject">Invalid route: One route route objects have unknown type.</string>
+    <string name="messageUnsupportedRouteObject">Invalid route: One or multiple route objects have unknown type.</string>
     <string name="messageInvalidRouteTwoPoints">Invalid route: The route contains two consecutive route points.</string>
     <string name="messageInvalidRouteTwoSegments">Invalid route: The route contains two consecutive route segments.</string>
     <string name="messageInvalidRouteNoDestination">Invalid route: The point of destination is missing.</string>
@@ -599,6 +599,7 @@
     <!-- location status values -->
     <string name="locationProviderGPS">GPS</string>
     <string name="locationProviderNetwork">Network</string>
+    <string name="locationProviderFused">Fused (network and GPS)</string>
     <string name="locationNameSimulation">Simulation</string>
     <string name="locationNameSimulationWithDescription">Simulation: %s</string>
     <string name="locationNameCurrentPosition">Current location</string>

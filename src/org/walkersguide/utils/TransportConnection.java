@@ -54,11 +54,11 @@ public class TransportConnection implements Comparable<TransportConnection> {
         if (routes.size() == 1) {
             return String.format(
                     Globals.getContext().getResources().getString(R.string.tcDescriptionSingleConnection),
-                    this.vehicles, this.getMinimalCost(), this.getAverageCost());
+                    this.vehicles);
         } else {
             return String.format(
                     Globals.getContext().getResources().getString(R.string.tcDescriptionMultipleConnections),
-                    this.vehicles, routes.size(), this.getMinimalCost(), this.getAverageCost());
+                    this.vehicles, routes.size());
         }
     }
 

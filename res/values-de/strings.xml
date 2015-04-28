@@ -154,8 +154,8 @@
     <string name="messagePointDescStationInterTurn">. Jetzt nach %s abbiegen.</string>
     <string name="messagePointDescStationDestination">Zielpunkt: %s</string>
     <string name="messagePointDescWayPointStart">Startpunkt ist dieser Wegpunkt.</string>
-    <string name="messagePointDescWayPointInterAhead">Geradeaus gehen und dem aktuellen Weg folgen.</string>
-    <string name="messagePointDescWayPointInterTurn">Nach %s abbiegen und dem aktuellen Weg folgen.</string>
+    <string name="messagePointDescWayPointInterAhead">Anschließend geradeaus gehen und dem aktuellen Weg folgen.</string>
+    <string name="messagePointDescWayPointInterTurn">Anschließend nach %s abbiegen und dem aktuellen Weg folgen.</string>
     <string name="messagePointDescWayPointDestination">Zielpunkt ist dieser Wegpunkt.</string>
     <string name="messageNoFurtherRoutePoint">Kein weiterer Routenpunkt mehr verfügbar</string>
     <string name="messageFirstRoutePoint">Bereits beim ersten Routenpunkt</string>
@@ -602,6 +602,7 @@
     <!-- location status values -->
     <string name="locationProviderGPS">GPS</string>
     <string name="locationProviderNetwork">Netzwerk</string>
+    <string name="locationProviderFused">Fused (Netzwerk und GPS)</string>
     <string name="locationNameSimulation">Simulation</string>
     <string name="locationNameSimulationWithDescription">Simulation: %s</string>
     <string name="locationNameCurrentPosition">Aktuelle Position</string>

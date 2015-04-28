@@ -57,6 +57,7 @@ public class MainActivity extends AbstractActivity {
         if (globalData == null) {
             globalData = ((Globals) getApplicationContext());
         }
+        System.out.println("xx session id = " + globalData.getSessionId());
         keyboardManager = globalData.getKeyboardManagerInstance();
         positionManager = globalData.getPositionManagerInstance();
         positionManager.resumeGPS();
@@ -241,6 +242,7 @@ public class MainActivity extends AbstractActivity {
         super.onDestroy();
         positionManager.stopGPS();
         sensorsManager.stopSensors();
+        System.out.println("xx session id onDestroy = " + globalData.getSessionId());
         globalData.killSessionId();
     }
 

@@ -14,10 +14,8 @@ import org.walkersguide.routeobjects.RouteObjectWrapper;
 public class Route {
 
     private ArrayList<RouteObjectWrapper> routeList;
-    private ArrayList<Point> subPointList;
     private int pointIndex;
     private int segmentIndex;
-    private int direction;
     private String routeDescription;
     private int cost;
 
@@ -32,39 +30,31 @@ public class Route {
         this.routeList.add(new RouteObjectWrapper());
         // some other variables
         this.routeDescription = "";
-        subPointList = new ArrayList<Point>();
         this.pointIndex = 0;
         this.segmentIndex = -1;
-        this.direction = 1;
         this.cost = 0;
     }
 
     public Route(ArrayList<RouteObjectWrapper> list) {
         this.routeList = list;
         this.routeDescription = "";
-        subPointList = new ArrayList<Point>();
         this.pointIndex = 0;
         this.segmentIndex = -1;
-        this.direction = 1;
         this.cost = 0;
     }
 
     public Route(ArrayList<RouteObjectWrapper> list, String description) {
         this.routeList= list;
-        subPointList = new ArrayList<Point>();
         this.pointIndex = 0;
         this.segmentIndex = -1;
-        this.direction = 1;
         this.routeDescription = description;
         this.cost = 0;
     }
 
     public Route(ArrayList<RouteObjectWrapper> list, String description, int cost) {
         this.routeList= list;
-        subPointList = new ArrayList<Point>();
         this.pointIndex = 0;
         this.segmentIndex = -1;
-        this.direction = 1;
         this.routeDescription = description;
         this.cost = cost;
     }
@@ -93,11 +83,6 @@ public class Route {
         else
             return new RouteObjectWrapper();
     }
-
-    public ArrayList<Point> getSegmentSubPoints() {
-        return this.subPointList;
-    }
-
     public int getListPosition() {
         return this.pointIndex;
     }
@@ -109,7 +94,6 @@ public class Route {
             else
                 this.pointIndex = position;
             this.segmentIndex = this.pointIndex -1;
-            this.direction = 1;
         }
     }
 
@@ -126,28 +110,14 @@ public class Route {
     public void previousPoint() {
         if (pointIndex > 1) {
             pointIndex -= 2;
-            if (direction == 0)
-                segmentIndex -= 2;
-            direction = 0;
-            // load subPoint array
-            subPointList = new ArrayList<Point>();
-            if ( getNextSegment().getFootwaySegment() != null) {
-                subPointList = (ArrayList<Point>) getNextSegment().getFootwaySegment().getPOIs().clone();
-                Collections.reverse( subPointList );
-            }
+            segmentIndex -= 2;
         }
     }
 
     public void nextPoint() {
         if (pointIndex < (routeList.size()-2) ) {
             pointIndex += 2;
-            if (direction == 1)
-                segmentIndex += 2;
-            direction = 1;
-            // load subPoint array
-            subPointList = new ArrayList<Point>();
-            if ( getNextSegment().getFootwaySegment() != null)
-                subPointList = (ArrayList<Point>) getNextSegment().getFootwaySegment().getPOIs().clone();
+            segmentIndex += 2;
         }
     }
 

@@ -1298,11 +1298,6 @@ public class StartFragment extends Fragment {
                 updateRouteRequest();
             }
         }
-
-        public void displayGPSSettingsDialog() {
-            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-            startActivity(intent);
-        }
     }
 
     private class MyAddressListener implements AddressManager.AddressListener {

@@ -14,7 +14,6 @@ import android.content.Intent;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.SystemClock;
-import android.provider.Settings;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -155,12 +154,7 @@ public class AddFavoriteActivity extends AbstractActivity {
                     getResources().getString(R.string.locationNameCurrentPosition), location);
             updateUserInterface();
         }
-        public void displayGPSSettingsDialog() {
-            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-            startActivity(intent);
-        }
     }
-
 
     private class DLListener implements DataDownloader.DataDownloadListener {
         @Override public void dataDownloadedSuccessfully(JSONObject jsonObject) {

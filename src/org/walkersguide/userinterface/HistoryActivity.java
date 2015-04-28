@@ -22,7 +22,6 @@ import android.content.Intent;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.SystemClock;
-import android.provider.Settings;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.MotionEvent;
@@ -748,10 +747,6 @@ public class HistoryActivity extends AbstractActivity {
                 currentLocation = new Point("", location);
                 updateUserInterface();
             }
-        }
-        public void displayGPSSettingsDialog() {
-            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-            startActivity(intent);
         }
     }
 

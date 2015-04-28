@@ -31,7 +31,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.os.Vibrator;
-import android.provider.Settings;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -1004,10 +1003,6 @@ public class POIFragment extends Fragment {
                     queryAddressUpdate();
             }
         }
-        public void displayGPSSettingsDialog() {
-            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-            startActivity(intent);
-        }
     }
 
     private class MySensorsListener implements SensorsManager.SensorsListener {
@@ -1016,9 +1011,13 @@ public class POIFragment extends Fragment {
             Button buttonRefresh = (Button) mainLayout.findViewById(R.id.buttonRefresh);
             if ( ((Integer) buttonRefresh.getTag() == 2)) {
                 int diff = Math.abs(currentCompassValue - lastCompassValue);
+                if (diff > 180)
+                    diff = 360 - diff;
                 int tempDiff = Math.abs(currentCompassValue - tempCompassValue);
+                if (tempDiff > 180)
+                    tempDiff = 360 - tempDiff;
                 tempCompassValue = currentCompassValue;
-                if ((diff > 22 && diff < 338) && (tempDiff < 5 || tempDiff > 355)) {
+                if (diff > 60 && tempDiff < 5) {
                     lastCompassValue = currentCompassValue;
                     queryPOIListUpdate();
                 }
@@ -1289,6 +1288,10 @@ public class POIFragment extends Fragment {
                         gpsStatusText = String.format(
                                 getResources().getString(R.string.messageGPSStatusSignalProvider),
                                 getResources().getString(R.string.locationProviderNetwork));
+                    } else if (location.getProvider().equals("fused")) {
+                        gpsStatusText = String.format(
+                                getResources().getString(R.string.messageGPSStatusSignalProvider),
+                                getResources().getString(R.string.locationProviderFused));
                     } else {
                         gpsStatusText = String.format(
                                 getResources().getString(R.string.messageGPSStatusSignalProvider),

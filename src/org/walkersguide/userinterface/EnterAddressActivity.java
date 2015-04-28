@@ -23,7 +23,6 @@ import android.content.Intent;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.SystemClock;
-import android.provider.Settings;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -211,10 +210,6 @@ public class EnterAddressActivity extends AbstractActivity {
         }
         public void getCurrentSpeed(double speed) {}
         public void getCurrentBearing(int bearing) {}
-        public void displayGPSSettingsDialog() {
-            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-            startActivity(intent);
-        }
     }
 
     private class MyAddressListener implements AddressManager.AddressListener {

@@ -31,15 +31,12 @@ import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Vibrator;
-import android.provider.Settings;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.View.AccessibilityDelegate;
 import android.view.ViewGroup;
 import android.view.ViewGroup.MarginLayoutParams;
-import android.view.accessibility.AccessibilityEvent;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -63,7 +60,6 @@ public class RouterFragment extends Fragment {
     }
 
     private MessageFromRouterFragmentListener mRouterFListener;
-    private AccessibilityDelegate defaultAccessibilityDelegate;
     private static final int OBJECTDETAILS = 1;
     private Globals globalData;
     private LinearLayout mainLayout;
@@ -109,14 +105,6 @@ public class RouterFragment extends Fragment {
         routeSimulator = new RouteSimulator();
         gpsStatusHandler = new Handler();
         gpsStatusUpdater = new GPSStatusUpdater();
-        defaultAccessibilityDelegate = new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    focusedElement = UIElement.DEFAULT;
-                }
-            }
-        };
         // This makes sure that the container activity has implemented
         // the callback interface. If not, it throws an exception
         try {
@@ -150,7 +138,6 @@ public class RouterFragment extends Fragment {
         // main layout
         Button buttonSwitchRouteView = (Button) mainLayout.findViewById(R.id.buttonSwitchRouteView);
         buttonSwitchRouteView.setTag(0);
-        buttonSwitchRouteView.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonSwitchRouteView.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 Button buttonSwitchRouteView = (Button) mainLayout.findViewById(R.id.buttonSwitchRouteView);
@@ -165,7 +152,6 @@ public class RouterFragment extends Fragment {
         });
 
         Spinner spinnerAdditionalOptions = (Spinner) mainLayout.findViewById(R.id.spinnerAdditionalOptions);
-        spinnerAdditionalOptions.setAccessibilityDelegate(defaultAccessibilityDelegate);
         spinnerAdditionalOptions.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                 String oldOption = ((String) parent.getItemAtPosition(
@@ -186,59 +172,15 @@ public class RouterFragment extends Fragment {
         adapterAdditionalOptions.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerAdditionalOptions.setAdapter(adapterAdditionalOptions);
 
-        TextView labelStatus = (TextView) mainLayout.findViewById(R.id.labelStatus);
-        labelStatus.setAccessibilityDelegate(defaultAccessibilityDelegate);
-
         // next point layout
-        TextView labelNextSegmentDescription = (TextView) nextPointLayout.findViewById(R.id.labelNextSegmentDescription);
-        labelNextSegmentDescription.setAccessibilityDelegate(defaultAccessibilityDelegate);
-        TextView labelNextPointDescription = (TextView) nextPointLayout.findViewById(R.id.labelNextPointDescription);
-        labelNextPointDescription.setAccessibilityDelegate(defaultAccessibilityDelegate);
-
-        TextView labelDetailInformation = (TextView) nextPointLayout.findViewById(R.id.labelDetailInformation);
-        labelDetailInformation.setAccessibilityDelegate(new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    focusedElement = UIElement.DETAILS;
-                }
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_HOVER_ENTER
-                        && focusedElement == UIElement.DETAILS) {
-                    TextView labelDetailInformation = (TextView) nextPointLayout.findViewById(R.id.labelDetailInformation);
-                    labelDetailInformation.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
-                }
-            }
-        });
-
-        TextView labelDistance= (TextView) nextPointLayout.findViewById(R.id.labelDistance);
-        labelDistance.setAccessibilityDelegate(new AccessibilityDelegate() {
-            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
-                super.onPopulateAccessibilityEvent(host, event);
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
-                    lastSpokenLocation = currentLocation;
-                    focusedElement = UIElement.DISTANCE;
-                }
-                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_HOVER_ENTER
-                        && focusedElement == UIElement.DISTANCE) {
-                    TextView labelDistance= (TextView) nextPointLayout.findViewById(R.id.labelDistance);
-                    labelDistance.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
-                }
-            }
-        });
-
         Button buttonPrevPoint= (Button) nextPointLayout.findViewById(R.id.buttonPrevPoint);
-        buttonPrevPoint.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonPrevPoint.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 previousRoutePoint();
             }
         });
 
-        TextView labelCurrentPoint= (TextView) nextPointLayout.findViewById(R.id.labelCurrentPoint);
-        labelCurrentPoint.setAccessibilityDelegate(defaultAccessibilityDelegate);
-
         Button buttonNextPoint= (Button) nextPointLayout.findViewById(R.id.buttonNextPoint);
-        buttonNextPoint.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonNextPoint.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 nextRoutePoint();
@@ -246,7 +188,6 @@ public class RouterFragment extends Fragment {
         });
 
         Button buttonDetails = (Button) nextPointLayout.findViewById(R.id.buttonDetails);
-        buttonDetails.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonDetails.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 if (route == null) {
@@ -273,7 +214,6 @@ public class RouterFragment extends Fragment {
         });
 
         Spinner spinnerPresets = (Spinner) nextPointLayout.findViewById(R.id.spinnerPresets);
-        spinnerPresets.setAccessibilityDelegate(defaultAccessibilityDelegate);
         spinnerPresets.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                 int presetId = ((POIPreset) parent.getItemAtPosition(pos)).getId();
@@ -300,7 +240,6 @@ public class RouterFragment extends Fragment {
 
         Button buttonSimulation = (Button) nextPointLayout.findViewById(R.id.buttonSimulation);
         buttonSimulation.setTag(0);
-        buttonSimulation.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonSimulation.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 if (route == null) {
@@ -314,7 +253,6 @@ public class RouterFragment extends Fragment {
 
         // route list sub view
         ListView listview = (ListView) routeListLayout.findViewById(R.id.listRouteSegments);
-        listview.setAccessibilityDelegate(defaultAccessibilityDelegate);
         listview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override public void onItemClick(AdapterView<?> parent, final View view,
                         int position, long id) {
@@ -405,7 +343,7 @@ public class RouterFragment extends Fragment {
         }
     }
 
-    public void updateLabelStatus() {
+    public synchronized void updateLabelStatus() {
         Spinner spinnerAdditionalOptions = (Spinner) mainLayout.findViewById(R.id.spinnerAdditionalOptions);
         TextView labelStatus = (TextView) mainLayout.findViewById(R.id.labelStatus);
         if ( ((String) spinnerAdditionalOptions.getSelectedItem()).equals(getResources().getString(R.string.arrayAAAddress)) ) {
@@ -437,7 +375,7 @@ public class RouterFragment extends Fragment {
         }
     }
 
-    public void updateRouteCurrentPositionFragment() {
+    public synchronized void updateRouteCurrentPositionFragment() {
         if (route == null || currentLocation == null) {
             return;
         }
@@ -614,9 +552,6 @@ public class RouterFragment extends Fragment {
                     segment.getTransportSegment().getDepartureTime(),
                     segment.getTransportSegment().getDuration(),
                     segment.getTransportSegment().getNumberOfStops() ));
-        } else {
-            labelNextSegmentDescription.setText("");
-            // String.format(getResources().getString(R.string.messageSegmentDescStart), currentDistance));
         }
 
         // tell the user, when the next route point is reached
@@ -723,6 +658,16 @@ public class RouterFragment extends Fragment {
                 HelperFunctions.getCompassDirection(currentCompassValue), currentCompassValue));
         if (settingsManager.useGPSAsBearingSource())
             labelDistance.setText(labelDistance.getText().toString() + " (GPS)");
+
+        // hide labels if they are empty
+        if (labelNextSegmentDescription.getText().toString().equals(""))
+            labelNextSegmentDescription.setVisibility(View.GONE);
+        else
+            labelNextSegmentDescription.setVisibility(View.VISIBLE);
+        if (labelDetailInformation.getText().toString().equals(""))
+            labelDetailInformation.setVisibility(View.GONE);
+        else
+            labelDetailInformation.setVisibility(View.VISIBLE);
     }
 
     public void showSimulationDialog() {
@@ -1109,7 +1054,7 @@ public class RouterFragment extends Fragment {
         if ((Integer) buttonSimulation.getTag() > 0)
             mHandler.postDelayed(routeSimulator, 100);
         // gps quality handler
-        gpsStatusHandler.postDelayed(gpsStatusUpdater, 100);
+        //-.-gpsStatusHandler.postDelayed(gpsStatusUpdater, 100);
     }
 
     public void queryPOIListUpdate() {
@@ -1305,16 +1250,14 @@ public class RouterFragment extends Fragment {
                 queryAddressUpdate();
             }
         }
-        public void displayGPSSettingsDialog() {
-            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-            startActivity(intent);
-        }
     }
 
     private class MySensorsListener implements SensorsManager.SensorsListener {
         public void compassValueChanged(int degree) {
             currentCompassValue = degree;
-            updateRouteCurrentPositionFragment();
+            Spinner spinnerAdditionalOptions = (Spinner) mainLayout.findViewById(R.id.spinnerAdditionalOptions);
+            if (! ((String) spinnerAdditionalOptions.getSelectedItem()).equals(getResources().getString(R.string.arrayAADisabled)) )
+                updateRouteCurrentPositionFragment();
         }
         public void shakeDetected() {
             if (settingsManager.getShakeForNextRoutePoint() == true
@@ -1547,6 +1490,10 @@ public class RouterFragment extends Fragment {
                         gpsStatusText = String.format(
                                 getResources().getString(R.string.messageGPSStatusSignalProvider),
                                 getResources().getString(R.string.locationProviderNetwork));
+                    } else if (location.getProvider().equals("fused")) {
+                        gpsStatusText = String.format(
+                                getResources().getString(R.string.messageGPSStatusSignalProvider),
+                                getResources().getString(R.string.locationProviderFused));
                     } else {
                         gpsStatusText = String.format(
                                 getResources().getString(R.string.messageGPSStatusSignalProvider),

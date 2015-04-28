@@ -5,13 +5,11 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
 
-import org.walkersguide.R;
 import org.walkersguide.sensors.PositionManager;
 import org.walkersguide.sensors.SensorsManager;
 
 import android.app.Application;
 import android.content.Context;
-import android.media.MediaPlayer;
 
 /**
  * global values which are used to communicate between fragments and activities

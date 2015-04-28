@@ -1,11 +1,8 @@
 package org.walkersguide.sensors;
 
-import java.text.SimpleDateFormat;
-
 import org.walkersguide.R;
 import org.walkersguide.routeobjects.Point;
 import org.walkersguide.userinterface.DialogActivity;
-import org.walkersguide.utils.DataLogger;
 import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.SettingsManager;
 
@@ -13,14 +10,22 @@ import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
 import android.location.LocationManager;
-import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Vibrator;
-import android.util.Log;
 import android.widget.Toast;
 
-public class PositionManager {
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
+import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+
+public class PositionManager implements ConnectionCallbacks, OnConnectionFailedListener,
+       com.google.android.gms.location.LocationListener,
+       android.location.LocationListener {
 
     public enum Status {
         DISABLED, SIMULATION, GPS
@@ -28,25 +33,26 @@ public class PositionManager {
 
     public interface PositionListener {
         public void locationChanged(Location location);
-        public void displayGPSSettingsDialog();
+    }
+    public interface ErrorMessagesListener {
+        public void showGPSSettingsDialog();
     }
 
-	private static final String tag = "PositionManager"; // for Log
+    private static final String tag = "PositionManager"; // for Log
     private PositionListener pRawGPSListener, pFilteredListener;
+    private ErrorMessagesListener pErrorMessagesListener;
     private Context mContext;
     private Toast messageToast;
     private SettingsManager settingsManager;
-    private DataLogger dataLogger;
-    private boolean startLogging;
     private Vibrator vibrator;
 
     private Status status;
     private boolean simulationActivated;
     private String simulationName;
-    private boolean showSpeedMessage;
     private Location currentBestLocation;
     private LocationManager locationManager;
-    private LocationListener locationListener;
+    private LocationRequest locationRequest;
+    private GoogleApiClient locationClient;
     private long lastMatchTime;
 
     // warn, if we get no new location at all
@@ -58,8 +64,6 @@ public class PositionManager {
         Globals globalData = ((Globals) mContext);
         messageToast = Toast.makeText(mContext, "", Toast.LENGTH_SHORT);
         settingsManager = globalData.getSettingsManagerInstance();
-        dataLogger = new DataLogger(settingsManager.getProgramLogFolder() + "/00_gps_data.txt");
-        startLogging = true;
         status = Status.DISABLED;
         simulationActivated = false;
         this.simulationName = "";
@@ -67,32 +71,10 @@ public class PositionManager {
         this.gpsTimer = new GPSTimer();
         vibrator = (Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE);
         lastMatchTime = System.currentTimeMillis();
-
         // Figure out if we have a location somewhere that we can use as a current best location
-        //mGoogleApiClient = new GoogleApiClient.Builder(this)
-        //    .addConnectionCallbacks(this)
-        //    .addOnConnectionFailedListener(this)
-        //    .addApi(LocationServices.API).build();
-        locationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
-        locationListener = new LocationListener();
         Location lastKnownSavedLocation = settingsManager.loadLastLocation();
-        if( isBetterLocation(lastKnownSavedLocation, currentBestLocation)) {
+        if (isBetterLocation(lastKnownSavedLocation, currentBestLocation))
             currentBestLocation = lastKnownSavedLocation;
-            dataLogger.appendLog("xxx saved ist besser .. " + lastKnownSavedLocation.toString());
-        }
-        Location lastKnownNetworkLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-        if( isBetterLocation(lastKnownNetworkLocation, currentBestLocation) ) {
-            currentBestLocation = lastKnownNetworkLocation;
-            dataLogger.appendLog("xxx netzwerk ist besser .. " + lastKnownNetworkLocation.toString());
-        }
-        Location lastKnownGPSLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-        if( isBetterLocation(lastKnownGPSLocation, currentBestLocation) ) {
-            currentBestLocation = lastKnownGPSLocation;
-            dataLogger.appendLog("xxx gps ist besser .. " + lastKnownGPSLocation.toString());
-        }
-        dataLogger.appendLog("initialisierung fertig");
-        startLogging = false;
-        showSpeedMessage = false;
     }
 
     public void setPositionListener(PositionListener pFilteredListener) {
@@ -104,18 +86,8 @@ public class PositionManager {
         this.pRawGPSListener = pRawGPSListener;
     }
 
-    public void startLogging() {
-        dataLogger = new DataLogger(settingsManager.getProgramLogFolder() + "/00_gps_data.txt");
-        startLogging = true;
-        showSpeedMessage = false;
-    }
-
-    public void stopLogging() {
-        startLogging = false;
-    }
-
-    public boolean isLogging() {
-        return startLogging;
+    public void setErrorMessageListener(ErrorMessagesListener pErrorMessagesListener) {
+        this.pErrorMessagesListener = pErrorMessagesListener;
     }
 
     public void getLastKnownLocation() {
@@ -130,7 +102,11 @@ public class PositionManager {
     }
 
     public void resumeGPS() {
-        if (status == Status.DISABLED) {
+        // check if gps is enabled
+        LocationManager lm = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
+        if (! lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            pErrorMessagesListener.showGPSSettingsDialog();
+        } else if (status == Status.DISABLED) {
             changeStatus(Status.GPS, null);
         }
     }
@@ -145,11 +121,16 @@ public class PositionManager {
         switch (newStatus) {
             case DISABLED:
                 if (status == Status.GPS) {
-                    locationManager.removeUpdates(locationListener);
-                    locationListener = null;
-                    locationManager = null;
+                    if (locationClient != null) {
+                        if (locationClient.isConnected())
+                            locationClient.disconnect();
+                        locationClient = null;
+                    }
+                    if (locationManager != null) {
+                        locationManager.removeUpdates(this);
+                        locationManager = null;
+                    }
                     mHandler.removeCallbacks(gpsTimer);
-                    System.out.println("xx gps disabled");
                 }
                 status = newStatus;
                 return;
@@ -161,9 +142,15 @@ public class PositionManager {
                     return;
                 }
                 if (status == Status.GPS) {
-                    locationManager.removeUpdates(locationListener);
-                    locationListener = null;
-                    locationManager = null;
+                    if (locationClient != null) {
+                        if (locationClient.isConnected())
+                            locationClient.disconnect();
+                        locationClient = null;
+                    }
+                    if (locationManager != null) {
+                        locationManager.removeUpdates(this);
+                        locationManager = null;
+                    }
                     mHandler.removeCallbacks(gpsTimer);
                 }
                 if (settingsManager.useGPSAsBearingSource()) {
@@ -187,10 +174,12 @@ public class PositionManager {
                 status = newStatus;
                 return;
             case GPS:
-                locationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
-                locationListener = new LocationListener();
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 10000, 0, locationListener);
+                locationClient = new GoogleApiClient.Builder(mContext)
+                    .addApi(LocationServices.API)
+                    .addConnectionCallbacks(this)
+                    .addOnConnectionFailedListener(this)
+                    .build();
+                locationClient.connect();
                 gpsTimer.reset();
                 mHandler.postDelayed(gpsTimer, 5000);
                 currentBestLocation = settingsManager.loadLastLocation();
@@ -217,19 +206,15 @@ public class PositionManager {
     public boolean isBetterLocation(Location location, Location currentBestLocation) {
         // some trivial tests
         if (this.status == Status.SIMULATION) {
-            dataLogger.appendLog("simulation");
             return false;
         } else if (location == null) {
-            dataLogger.appendLog("new location is null");
             return false;
         } else if (currentBestLocation == null) {
-            dataLogger.appendLog("current best location is null");
             return true;
         }
 
         // define log variables
         boolean locationAccepted = false;
-        int logFlag = 0;
         // Check whether the new location fix is newer or older
         long timeDelta = location.getTime() - currentBestLocation.getTime();
         boolean isOlder = timeDelta < -2000;
@@ -259,48 +244,20 @@ public class PositionManager {
 
         // if the location is older than the currentBestLocation, drop it
         if (isOlder) {
-            dataLogger.appendLog("new location is much older");
             return false;
         }
 
         // Determine location quality using a combination of timeliness and accuracy
         if (isMoreAccurateThanThresholdValue) {
             locationAccepted = true;
-            logFlag = 1;
         } else if (isNewer && isMoreAccurate && isFromSameProvider) {
             locationAccepted = true;
-            logFlag = 2;
         } else if (isABitNewer && isABitLessAccurate && isFromSameProvider) {
             locationAccepted = true;
-            logFlag = 3;
         } else if (isSignificantlyNewer && isSignificantlyLessAccurate) {
             locationAccepted = true;
-            logFlag = 4;
         } else if (isMuchMuchNewer) {
             locationAccepted = true;
-            logFlag = 5;
-        }
-
-        int distance = Math.round(location.distanceTo(currentBestLocation));
-        double speed = 0.0;
-        if (timeDelta >= 1) {
-            speed = ( (distance*1.0) / (timeDelta/1000) );
-        }
-        if (startLogging == true) {
-            SimpleDateFormat formater = new SimpleDateFormat("HH:mm:ss, dd.MM.yyyy");
-            if (speed > 3 && !showSpeedMessage) {
-                //messageToast.setText("Warn: Speed = " + String.format("%.2f", speed) + " m/s. " + distance + " / "
-                //        + timeDelta);
-                //messageToast.show();
-                showSpeedMessage = true;
-                dataLogger.appendLog( String.format("%d; SpeEd* = %.1f (%d/%d); %s; acc_new = %.1f, acc_old = %.1f; bearing = %.1f; stamp = %s",
-                            logFlag, speed, distance, timeDelta, location.getProvider(), location.getAccuracy(),
-                            currentBestLocation.getAccuracy(), location.getBearing(), formater.format(location.getTime()) ));
-            } else {
-                dataLogger.appendLog( String.format("%d; Speed = %.1f (%d/%d); %s; acc_new = %.1f, acc_old = %.1f; bearing = %.1f; stamp = %s",
-                            logFlag, speed, distance, timeDelta, location.getProvider(), location.getAccuracy(),
-                            currentBestLocation.getAccuracy(), location.getBearing(), formater.format(location.getTime()) ));
-            }
         }
         return locationAccepted;
     }
@@ -313,70 +270,63 @@ public class PositionManager {
         return provider1.equals(provider2);
     }
 
-    private class LocationListener implements android.location.LocationListener {
-
-        private final String tag = LocationListener.class.getSimpleName();
-
-        @Override public void onLocationChanged(Location newLocation) {
-            gpsTimer.updateTimeOfLastFix();
-            if(isBetterLocation(newLocation, currentBestLocation)) {
-                currentBestLocation = newLocation;
-                gpsTimer.updateTimeOfLastAcceptedFix();
-                settingsManager.storeLastLocation(currentBestLocation);
-                if (pFilteredListener != null)
-                    pFilteredListener.locationChanged(currentBestLocation);
-                if (newLocation != null
-                        && ! newLocation.getProvider().equals("gps")
-                        && settingsManager.useGPSAsBearingSource()) {
-                    settingsManager.setBearingSource(SettingsManager.BearingSource.COMPASS);
-                    messageToast.setText(
-                            mContext.getResources().getString(R.string.messageSwitchedToCompass));
-                    messageToast.show();
-                }
-                if (pRawGPSListener != null
-                        && System.currentTimeMillis() - lastMatchTime > 5000
-                        && newLocation != null
-                        && newLocation.getProvider().equals("gps")
-                        && newLocation.hasBearing()
-                        && newLocation.hasSpeed()
-                        && newLocation.hasAccuracy()
-                        && ( (newLocation.getSpeed() > 0.66 && newLocation.getAccuracy() < 20.0)
-                            || (newLocation.getSpeed() > 1.33 && newLocation.getAccuracy() < 40.0)) ) {
+    @Override public void onLocationChanged(Location newLocation) {
+        gpsTimer.updateTimeOfLastFix();
+        if(isBetterLocation(newLocation, currentBestLocation)) {
+            currentBestLocation = newLocation;
+            gpsTimer.updateTimeOfLastAcceptedFix();
+            settingsManager.storeLastLocation(currentBestLocation);
+            if (pFilteredListener != null)
+                pFilteredListener.locationChanged(currentBestLocation);
+            // hand the location object to the SensorsManager class to check the compass integrity
+            if (pRawGPSListener != null && newLocation != null
+                    && System.currentTimeMillis() - lastMatchTime > 5000) {
+                // first case is the fallback for an indoor location object without bearing value
+                // if we currently use GPS as bearing source, then we tell the SensorsManager to
+                // switch back to compass but we do that carefully
+                if (! newLocation.hasBearing() && settingsManager.useGPSAsBearingSource()) {
+                    lastMatchTime = System.currentTimeMillis();
+                    pRawGPSListener.locationChanged(newLocation);
+                // second case requires at least a speed of 2.3 km/h and an accuracy of 20 meters
+                } else if (newLocation.hasBearing()
+                        && newLocation.hasSpeed() && newLocation.getSpeed() > 0.66
+                        && newLocation.hasAccuracy() && newLocation.getAccuracy() < 20.0) {
+                    lastMatchTime = System.currentTimeMillis();
+                    pRawGPSListener.locationChanged(newLocation);
+                // third case requires at least a speed of 4.8 km/h and an accuracy of 30 meters
+                } else if (newLocation.hasBearing()
+                        && newLocation.hasSpeed() && newLocation.getSpeed() > 1.33
+                        && newLocation.hasAccuracy() && newLocation.getAccuracy() < 30.0) {
                     lastMatchTime = System.currentTimeMillis();
                     pRawGPSListener.locationChanged(newLocation);
                 }
             }
         }
-
-        @Override public void onStatusChanged(String provider, int status, Bundle extras) {
-            // This is called when the GPS status alters
-            switch (status) {
-                case LocationProvider.OUT_OF_SERVICE:
-                    Log.v(tag, "Status Changed: Out of Service");
-                    // Toast.makeText(mContext, "Status Changed: Out of Service, Toast.LENGTH_SHORT).show();
-                    break;
-                case LocationProvider.TEMPORARILY_UNAVAILABLE:
-                    Log.v(tag, "Status Changed: Temporarily Unavailable");
-                    // Toast.makeText(mContext, "Status Changed: Temporarily Unavailable", Toast.LENGTH_SHORT).show();
-                    break;
-                case LocationProvider.AVAILABLE:
-                    Log.v(tag, "Status Changed: Available");
-                    // Toast.makeText(mContext, "Status Changed: Available", Toast.LENGTH_SHORT).show();
-                    break;
-            }
-        }
-
-        @Override public void onProviderDisabled(String provider) {
-            /* this is called if/when the GPS is disabled in settings */
-            if (pFilteredListener != null)
-                pFilteredListener.displayGPSSettingsDialog();
-        }
-
-        @Override public void onProviderEnabled(String provider) {
-            Log.v(tag, "Enabled");
-            // Toast.makeText(mContext, "GPS reEnabled", Toast.LENGTH_SHORT).show();
-        }
     }
+
+    // the next three functions belong to the Google FusedProvider
+    @Override public void onConnected(Bundle bundle) {
+        locationRequest = LocationRequest.create();
+        locationRequest.setInterval(1000); // milliseconds
+        locationRequest.setFastestInterval(1000); // the fastest rate in milliseconds at which your app can handle location updates
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        LocationServices.FusedLocationApi.requestLocationUpdates(
+                locationClient, locationRequest, this);
+    }
+    @Override public void onConnectionSuspended(int i) {}
+    @Override public void onConnectionFailed(ConnectionResult connectionResult) {
+        // if connection to fusedProvider fails, take Android's LocationManager as fallback
+        // for possible connectionResults look at
+        // https://developer.android.com/reference/com/google/android/gms/common/ConnectionResult.html
+        locationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 10000, 0, this);
+    }
+
+    // the next three functions belong to Android's Location Provider
+    @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
+    @Override public void onProviderEnabled(String provider) {}
+    @Override public void onProviderDisabled(String provider) {}
 
     private class GPSTimer implements Runnable {
         private long timeOfLastFix;
@@ -410,12 +360,12 @@ public class PositionManager {
             if ( ((currentTime - timeOfLastAcceptedFix) > 15000)
                     && getStatus() == Status.GPS
                     && currentBestLocation != null
-                    && currentBestLocation.getProvider().equals("gps")
+                    && currentBestLocation.hasBearing()
                     && noAcceptedFixMessage == false ) {
                 noAcceptedFixMessage = true;
                 long[] pattern = {0, 100, 75, 100, 75, 100, 75, 100};
                 vibrator.vibrate(pattern, -1);
-            }
+                    }
             if ( ((currentTime - timeOfLastAcceptedFix) < 15000) && (noAcceptedFixMessage == true) ) {
                 noAcceptedFixMessage = false;
             }

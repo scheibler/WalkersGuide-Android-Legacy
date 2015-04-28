@@ -34,7 +34,6 @@ import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Vibrator;
-import android.provider.Settings;
 import android.text.util.Linkify;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -989,10 +988,6 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
                 messageToast.setText(labelDistanceAndBearing.getText().toString());
                 messageToast.show();
             }
-        }
-        public void displayGPSSettingsDialog() {
-            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-            startActivity(intent);
         }
     }
 
