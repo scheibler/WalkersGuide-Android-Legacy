@@ -16,7 +16,6 @@ import android.os.Vibrator;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
 import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
@@ -281,10 +280,12 @@ public class PositionManager implements ConnectionCallbacks, OnConnectionFailedL
             // hand the location object to the SensorsManager class to check the compass integrity
             if (pRawGPSListener != null && newLocation != null
                     && System.currentTimeMillis() - lastMatchTime > 5000) {
-                // first case is the fallback for an indoor location object without bearing value
+                // first case is the fallback for an indoor location object without bearing and speed value
                 // if we currently use GPS as bearing source, then we tell the SensorsManager to
                 // switch back to compass but we do that carefully
-                if (! newLocation.hasBearing() && settingsManager.useGPSAsBearingSource()) {
+                if (! newLocation.hasBearing()
+                        && ! newLocation.hasSpeed()
+                        && settingsManager.useGPSAsBearingSource()) {
                     lastMatchTime = System.currentTimeMillis();
                     pRawGPSListener.locationChanged(newLocation);
                 // second case requires at least a speed of 2.3 km/h and an accuracy of 20 meters

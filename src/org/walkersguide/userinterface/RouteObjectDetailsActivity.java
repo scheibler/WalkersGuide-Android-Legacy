@@ -4,10 +4,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Locale;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.walkersguide.R;
+import org.walkersguide.exceptions.DepartureListParsingException;
 import org.walkersguide.exceptions.RouteParsingException;
 import org.walkersguide.routeobjects.FootwaySegment;
 import org.walkersguide.routeobjects.IntersectionPoint;
@@ -45,6 +45,9 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.RadioGroup.OnCheckedChangeListener;
 import android.widget.RelativeLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -53,12 +56,22 @@ import android.widget.Toast;
 
 public class RouteObjectDetailsActivity extends  AbstractActivity {
 
+    // view ids
     private final int spinnerEntrancesId = 29381455;
     private final int wayLayoutId = 11973432;
     private final int departureLayoutId = 11973433;
     private final int trafficSignalLayoutId = 11973434;
     private final int interactiveModeID = 99123123;
     private final int labelDistanceAndBearingId = 38457192;
+    private final int rgBearingId = 500;
+    private final int rbWalkId = 501;
+    private final int rbNorthId = 502;
+    private final int rbCompassId = 503;
+    private final int rgDeparturesId = 600;
+    private final int rbNextHourId = 601;
+    private final int rbNextTwoHoursId = 602;
+    private final int rbAllConnectionsId = 603;
+
     private Globals globalData;
     private PositionManager positionManager;
     private SensorsManager sensorsManager;
@@ -70,10 +83,10 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
     private LayoutParams lp;
     private Toast messageToast;
     private RouteObjectWrapper routeObject;
-    private Point currentLocation, lastSpokenLocation;
+    private Point currentLocation, lastLocation, lastSpokenLocation;
     private IntersectionPoint.IntersectionWay nextWay, lastSpokenWay;
     private int currentCompassValue, lastCompassValue;
-    private int nextSegmentBearing;
+    private int prevSegmentBearing, nextSegmentBearing;
     private int lastIntersectionWay;
     private Handler progressHandler;
     private ProgressUpdater progressUpdater;
@@ -100,6 +113,7 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
         progressUpdater = new ProgressUpdater();
 
         Intent sender=getIntent();
+        prevSegmentBearing = sender.getExtras().getInt("prevSegmentBearing", -1);
         nextSegmentBearing = sender.getExtras().getInt("nextSegmentBearing", -1);
 
         // load route object
@@ -244,6 +258,57 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
                     getResources().getString(R.string.labelNumberOfIntersectionWays),
                     intersection.getNumberOfStreets() ));
             preferencesLayout.addView(label);
+
+            RadioGroup rgBearing = new RadioGroup(this);
+            rgBearing.setLayoutParams(lp);
+            rgBearing.setId(rgBearingId);
+            rgBearing.setOrientation(RadioGroup.HORIZONTAL);
+            // walking direction radio button
+            if (prevSegmentBearing >= 0) {
+                RadioButton rbWalk  = new RadioButton(this);
+                rbWalk.setLayoutParams(new RadioGroup.LayoutParams(
+                        LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 1f));
+                rbWalk.setId(rbWalkId);
+                rbWalk.setText(String.format(
+                        getResources().getString(R.string.radioButtonWalkingDirection),
+                        HelperFunctions.getCompassDirection(prevSegmentBearing) ));
+                rgBearing.addView(rbWalk);
+            }
+            // north direction radio button
+            RadioButton rbNorth  = new RadioButton(this);
+            rbNorth.setLayoutParams(new RadioGroup.LayoutParams(
+                    LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 1f));
+            rbNorth.setId(rbNorthId);
+            rbNorth.setText(getResources().getString(R.string.radioButtonDirectionNorth));
+            rgBearing.addView(rbNorth);
+            // dynamic compass radio button
+            RadioButton rbCompass  = new RadioButton(this);
+            rbCompass.setLayoutParams(new RadioGroup.LayoutParams(
+                    LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 1f));
+            rbCompass.setId(rbCompassId);
+            rbCompass.setText(String.format(
+                        getResources().getString(R.string.radioButtonDirectionCompass),
+                        HelperFunctions.getCompassDirection(currentCompassValue) ));
+            rgBearing.addView(rbCompass);
+            // action listener
+            rgBearing.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+                public void onCheckedChanged(RadioGroup group, int checkedId) {
+                    	IntersectionPoint intersection = routeObject.getIntersection();
+                    for (IntersectionPoint.IntersectionWay way : intersection.getSubPoints()) {
+                        if (checkedId == rbWalkId) {
+                            way.setRelativeBearing(prevSegmentBearing);
+                        } else if (checkedId == rbNorthId) {
+                            way.setRelativeBearing(0);
+                        } else if (checkedId == rbCompassId) {
+                            way.setRelativeBearing(currentCompassValue);
+                        }
+                    }
+                    Collections.sort(intersection.getSubPoints());
+                    updateIntersectionData();
+                }
+            });
+            preferencesLayout.addView(rgBearing);
+
             LinearLayout wayLayout = new LinearLayout(this);
             wayLayout.setLayoutParams(lp);
             wayLayout.setOrientation(LinearLayout.VERTICAL);
@@ -414,6 +479,40 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
                 label.setLayoutParams(lp);
                 label.setText(getResources().getString(R.string.labelNextDepartures));
                 preferencesLayout.addView(label);
+
+                RadioGroup rgDepartures = new RadioGroup(this);
+                rgDepartures.setLayoutParams(lp);
+                rgDepartures.setId(rgDeparturesId);
+                rgDepartures.setOrientation(RadioGroup.HORIZONTAL);
+                // next hour
+                RadioButton rbNextHour  = new RadioButton(this);
+                rbNextHour.setLayoutParams(new RadioGroup.LayoutParams(
+                            LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 1f));
+                rbNextHour.setId(rbNextHourId);
+                rbNextHour.setText(getResources().getString(R.string.radioButtonDeparturesNextHour));
+                rgDepartures.addView(rbNextHour);
+                // next two hours
+                RadioButton rbNextTwoHours  = new RadioButton(this);
+                rbNextTwoHours.setLayoutParams(new RadioGroup.LayoutParams(
+                            LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 1f));
+                rbNextTwoHours.setId(rbNextTwoHoursId);
+                rbNextTwoHours.setText(getResources().getString(R.string.radioButtonDeparturesNextTwoHours));
+                rgDepartures.addView(rbNextTwoHours);
+                // all connections
+                RadioButton rbAllConnections  = new RadioButton(this);
+                rbAllConnections.setLayoutParams(new RadioGroup.LayoutParams(
+                            LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 1f));
+                rbAllConnections.setId(rbAllConnectionsId);
+                rbAllConnections.setText(getResources().getString(R.string.radioButtonAllDepartures));
+                rgDepartures.addView(rbAllConnections);
+                // action listener
+                rgDepartures.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+                    public void onCheckedChanged(RadioGroup group, int checkedId) {
+                        updateDepartureTable();
+                    }
+                });
+                preferencesLayout.addView(rgDepartures);
+
                 LinearLayout departureLayout = new LinearLayout(this);
                 departureLayout.setLayoutParams(lp);
                 departureLayout.setId(departureLayoutId);
@@ -421,14 +520,25 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
                 preferencesLayout.addView(departureLayout);
 
                 // query latest departures from server
+                station.setNextDepartures(null);
+                station.setQueryDeparturesError("");
+                JSONObject requestJson = new JSONObject();
+                try {
+                    requestJson.put("lat", station.getLatitude());
+                    requestJson.put("lon", station.getLongitude());
+                    requestJson.put("language", Locale.getDefault().getLanguage());
+                    requestJson.put("session_id", globalData.getSessionId());
+                } catch (JSONException e) {
+                    return;
+                }
                 DataDownloader downloader = new DataDownloader(RouteObjectDetailsActivity.this);
                 downloader.setDataDownloadListener(new DLListener() );
-                downloader.execute( "get",
-                        globalData.getSettingsManagerInstance().getServerPath(),
-                        "/get_departures?"
-                        + "lat=" + station.getLatitude()
-                        + "&lon=" + station.getLongitude()
-                        + "&language=" + Locale.getDefault().getLanguage() );
+                downloader.execute(
+                        globalData.getSettingsManagerInstance().getServerPath() + "/get_departures",
+                        requestJson.toString() );
+
+                // check first radio button
+                rgDepartures.check(rbNextHourId);
             }
 
         } else if (routeObject.getFootwaySegment() != null) {
@@ -547,7 +657,7 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
         positionManager.setPositionListener(null);
         sensorsManager.setSensorsListener(null);
         if (followWayDownloader != null) {
-            cancelRouteDownloadProcess();
+            followWayDownloader.cancelDownloadProcess();
         }
     }
 
@@ -639,6 +749,56 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
                             HelperFunctions.getFormatedDirection(signal.getBearing()),
                             signal.getName() ));
                 trafficSignalLayout.addView(signalTextField);
+            }
+        }
+    }
+
+    public void updateDepartureTable() {
+        // if the current point is a station, list the next departures
+        StationPoint station = routeObject.getStation();
+        if (station == null)
+            return;
+        RadioGroup rgDepartures = (RadioGroup) findViewById(rgDeparturesId);
+        LinearLayout departureLayout = (LinearLayout) findViewById(departureLayoutId);
+        if (departureLayout.getChildCount() > 0)
+            departureLayout.removeAllViews();
+        TextView label;
+        if (station.getNextDepartures() == null) {
+            label = new TextView(this);
+            label.setLayoutParams(lp);
+            if (station.getQueryDeparturesError().equals("")) {
+                label.setText(getResources().getString(R.string.messagePleaseWait));
+            } else {
+                label.setText(station.getQueryDeparturesError());
+            }
+            departureLayout.addView(label);
+        } else {
+            int numberOfEntries = 0;
+            for (StationPoint.Departure departure : station.getNextDepartures()) {
+                if (
+                        (departure.getRemaining() < 60
+                            && rgDepartures.getCheckedRadioButtonId() == rbNextHourId)
+                        || (departure.getRemaining() >= 60
+                            && departure.getRemaining() < 120
+                            && rgDepartures.getCheckedRadioButtonId() == rbNextTwoHoursId)
+                        || (departure.getRemaining() >= 120
+                            && rgDepartures.getCheckedRadioButtonId() == rbAllConnectionsId)
+                        ) {
+                    label= new TextView(this);
+                    label.setLayoutParams(lp);
+                    label.setText( String.format(
+                                getResources().getString(R.string.labelDepartureTableRow),
+                                departure.getLine(), departure.getDirection(),
+                                departure.getRemaining(), departure.getTime() ));
+                    departureLayout.addView(label);
+                    numberOfEntries++;
+                }
+            }
+            if (numberOfEntries == 0) {
+                label = new TextView(this);
+                label.setLayoutParams(lp);
+                label.setText(getResources().getString(R.string.messageFoundNoDepartures));
+                departureLayout.addView(label);
             }
         }
     }
@@ -818,7 +978,7 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
             @Override public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
                 if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
                     if (followWayDownloader != null) {
-                        cancelRouteDownloadProcess();
+                        followWayDownloader.cancelDownloadProcess();
                     }
                     dialog.dismiss();
                 }
@@ -868,9 +1028,7 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
         buttonRoute.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 progressHandler.postDelayed(progressUpdater, 100);
-                boolean result = calculateRouteForIntersectionWay(view.getId(), false);
-                if (!result)
-                    dialog.dismiss();
+                calculateRouteForIntersectionWay(view.getId(), false);
             }
         });
         dialogLayout.addView(buttonRoute);
@@ -882,9 +1040,7 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
         buttonFullRoute.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 progressHandler.postDelayed(progressUpdater, 100);
-                boolean result = calculateRouteForIntersectionWay(view.getId(), true);
-                if (!result)
-                    dialog.dismiss();
+                calculateRouteForIntersectionWay(view.getId(), true);
             }
         });
         dialogLayout.addView(buttonFullRoute);
@@ -895,7 +1051,7 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
         buttonCancel.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 if (followWayDownloader != null) {
-                    cancelRouteDownloadProcess();
+                    followWayDownloader.cancelDownloadProcess();
                 }
                 dialog.dismiss();
             }
@@ -938,52 +1094,53 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
             return false;
         }
         if (followWayDownloader != null) {
-            cancelRouteDownloadProcess();
+            followWayDownloader.cancelDownloadProcess();
+            Toast.makeText(this, getResources().getString(R.string.messageRouteComputationCanceled),
+                    Toast.LENGTH_LONG).show();
+        } else {
+            followWayDownloader = new DataDownloader(RouteObjectDetailsActivity.this);
+            followWayDownloader.setDataDownloadListener(new FollowWayDLListener() );
+            followWayDownloader.execute(
+                    globalData.getSettingsManagerInstance().getServerPath() + "/follow_this_way",
+                    requestJson.toString() );
+            Toast.makeText(this, getResources().getString(R.string.messageRouteComputationStarted),
+                    Toast.LENGTH_LONG).show();
         }
-        followWayDownloader = new DataDownloader(RouteObjectDetailsActivity.this);
-        followWayDownloader.setDataDownloadListener(new FollowWayDLListener() );
-        followWayDownloader.execute( "post",
-                globalData.getSettingsManagerInstance().getServerPath() + "/follow_this_way",
-                requestJson.toString() );
-        Toast.makeText(this, getResources().getString(R.string.messageRouteComputationStarted),
-                Toast.LENGTH_LONG).show();
         return true;
-    }
-
-    private void cancelRouteDownloadProcess() {
-        followWayDownloader.cancelDownloadProcess();
-        JSONObject requestJson = new JSONObject();
-        try {
-            requestJson.put("language", Locale.getDefault().getLanguage());
-            requestJson.put("session_id", globalData.getSessionId());
-        } catch (JSONException e) {
-            return;
-        }
-        followWayDownloader = new DataDownloader(this);
-        followWayDownloader.setDataDownloadListener(new CanceledRequestDownloadListener() );
-        followWayDownloader.execute( "post",
-                globalData.getSettingsManagerInstance().getServerPath() + "/cancel_request",
-                requestJson.toString() );
     }
 
     private class MyPositionListener implements PositionManager.PositionListener {
         public void locationChanged(Location location) {
-            Point newPoint = new Point(
+            currentLocation = new Point(
                     String.format(
                         getResources().getString(R.string.locationNameCurrentPositionWithAccuracy),
                         (int) Math.round(location.getAccuracy()) ),
                     location);
-            if (currentLocation == null
-                    || currentLocation.distanceTo(newPoint) > 5) {
-                currentLocation = newPoint;
-                updateDistanceAndBearing();
+            updateDistanceAndBearing();
+            if (lastLocation == null
+                    || lastLocation.distanceTo(currentLocation) > 5) {
+                lastLocation = currentLocation;
                 updateIntersectionData();
+            }
+            // check intersection radio button
+            RadioGroup rgBearing = (RadioGroup) findViewById(rgBearingId);
+            if (rgBearing != null) {
+                if (rgBearing.getCheckedRadioButtonId() == -1) {
+                    // nothing checked yet
+                    if (currentLocation.distanceTo(routeObject.getPoint()) < 25) {
+                        rgBearing.check(rbCompassId);
+                    } else if (prevSegmentBearing >= 0) {
+                        rgBearing.check(rbWalkId);
+                    } else {
+                        rgBearing.check(rbNorthId);
+                    }
+                }
             }
             // speak distance from time to time
             TextView labelDistanceAndBearing = (TextView) findViewById(labelDistanceAndBearingId);
             if (labelDistanceAndBearing != null
                     && location.getSpeed() < 3.0
-                    && (lastSpokenLocation == null || currentLocation.distanceTo(lastSpokenLocation) > 15)) {
+                    && (lastSpokenLocation == null || currentLocation.distanceTo(lastSpokenLocation) > 20)) {
                 lastSpokenLocation = currentLocation;
                 messageToast.setText(labelDistanceAndBearing.getText().toString());
                 messageToast.show();
@@ -995,6 +1152,13 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
         public void compassValueChanged(int degree) {
             currentCompassValue = degree;
             updateDistanceAndBearing();
+            // update compass radio button label, if available
+            RadioButton rbCompass  = (RadioButton) findViewById(rbCompassId);
+            if (rbCompass != null) {
+                rbCompass.setText(String.format(
+                            getResources().getString(R.string.radioButtonDirectionCompass),
+                            HelperFunctions.getCompassDirection(currentCompassValue) ));
+            }
             // rest is for intersections only
             IntersectionPoint intersection = routeObject.getIntersection();
             int diff = Math.abs(currentCompassValue - lastCompassValue);
@@ -1004,26 +1168,35 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
                     && intersection != null
                     && diff >= 15) {
                 lastCompassValue = currentCompassValue;
-                // sort intersection ways
-                for (IntersectionPoint.IntersectionWay way : intersection.getSubPoints())
-                    way.setRelativeBearing(currentCompassValue);
-                Collections.sort(intersection.getSubPoints());
-                // speak the intersection street name, which is in front of the user
-                IntersectionPoint.IntersectionWay way = intersection.getSubPoints().get(0);
-                String direction = HelperFunctions.getFormatedDirection(way.getRelativeBearing());
-                if (way != lastSpokenWay
-                        && direction.equals(getResources().getString(R.string.directionStraightforward))) {
-                    lastSpokenWay = way;
-                    messageToast.cancel();
-                    messageToast = Toast.makeText(getApplicationContext(), "", Toast.LENGTH_SHORT);
-                    if (way == nextWay) {
-                        messageToast.setText( String.format(
-                                    getResources().getString(R.string.messageInterWayNameNextPoint),
-                                    way.getName() ));
-                    } else {
-                        messageToast.setText(way.getName());
+                // access direction radio group
+                RadioGroup rgBearing = (RadioGroup) findViewById(rgBearingId);
+                if (rgBearing.getCheckedRadioButtonId() == rbCompassId) {
+                    // sort intersection ways
+                    for (IntersectionPoint.IntersectionWay way : intersection.getSubPoints()) {
+                        way.setRelativeBearing(currentCompassValue);
                     }
-                    messageToast.show();
+                    Collections.sort(intersection.getSubPoints());
+                    // speak the intersection street name, which is in front of the user
+                    IntersectionPoint.IntersectionWay wayInFrontOfUser = null;
+                    for (IntersectionPoint.IntersectionWay way : intersection.getSubPoints()) {
+                        String direction = HelperFunctions.getFormatedDirection(way.getRelativeBearing());
+                        if (direction.equals(getResources().getString(R.string.directionStraightforward))) {
+                            wayInFrontOfUser = way;
+                        }
+                    }
+                    if (wayInFrontOfUser != null && wayInFrontOfUser != lastSpokenWay) {
+                        lastSpokenWay = wayInFrontOfUser;
+                        messageToast.cancel();
+                        messageToast = Toast.makeText(getApplicationContext(), "", Toast.LENGTH_SHORT);
+                        if (wayInFrontOfUser == nextWay) {
+                            messageToast.setText( String.format(
+                                        getResources().getString(R.string.messageInterWayNameNextPoint),
+                                        wayInFrontOfUser.getName() ));
+                        } else {
+                            messageToast.setText(wayInFrontOfUser.getName());
+                        }
+                        messageToast.show();
+                    }
                 }
                 updateIntersectionData();
             }
@@ -1063,62 +1236,45 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
         @Override public void dataDownloadCanceled() {
             progressHandler.removeCallbacks(progressUpdater);
             followWayDownloader = null;
+            JSONObject requestJson = new JSONObject();
+            try {
+                requestJson.put("language", Locale.getDefault().getLanguage());
+                requestJson.put("session_id", globalData.getSessionId());
+            } catch (JSONException e) {
+                return;
+            }
+            DataDownloader cancelDownloader = new DataDownloader(getApplicationContext());
+            cancelDownloader.setDataDownloadListener(new CanceledRequestDownloadListener() );
+            cancelDownloader.execute(
+                    globalData.getSettingsManagerInstance().getServerPath() + "/cancel_request",
+                    requestJson.toString() );
         }
     }
 
     private class DLListener implements DataDownloader.DataDownloadListener {
         @Override public void dataDownloadedSuccessfully(JSONObject jsonObject) {
-            TextView label;
-            LinearLayout departureLayout = (LinearLayout) findViewById(departureLayoutId);
-            if (departureLayout.getChildCount() > 0)
-                departureLayout.removeAllViews();
-            CharSequence  text = "";
+            StationPoint station = routeObject.getStation();
             try {
-                if (jsonObject == null) {
-                    text = getResources().getString(R.string.messageUnknownError);
-                } else if (! jsonObject.getString("error").equals("")) {
-                    text = String.format(
-                            getResources().getString(R.string.messageErrorFromServer),
-                            jsonObject.getString("error") );
-                } else {
-                    JSONArray departureArray = jsonObject.getJSONArray("departures");
-                    for (int i=0; i<departureArray.length(); i++) {
-                        JSONObject departure = departureArray.getJSONObject(i);
-                        label= new TextView(getApplicationContext());
-                        label.setLayoutParams(lp);
-                        label.setText( String.format(
-                                getResources().getString(R.string.labelDepartureTableRow),
-                                departure.getString("nr"),
-                                departure.getString("to"),
-                                departure.getString("remaining"),
-                                departure.getString("time") ));
-                        departureLayout.addView(label);
-                    }
-                    return;
-                }
-            } catch (JSONException e) {
-                text = String.format(
-                        getResources().getString(R.string.messageJSONError),
-                        e.getMessage() );
+                station.setNextDepartures(
+                        ObjectParser.parseStationDepartureList(station, jsonObject));
+            } catch (DepartureListParsingException e) {
+                station.setQueryDeparturesError(e.getMessage());
             }
-            label = new TextView(getApplicationContext());
-            label.setLayoutParams(lp);
-            label.setText(text);
-            departureLayout.addView(label);
+            updateDepartureTable();
         }
 
         @Override public void dataDownloadFailed(String error) {
-            LinearLayout departureLayout = (LinearLayout) findViewById(departureLayoutId);
-            if (departureLayout.getChildCount() > 0)
-                departureLayout.removeAllViews();
-            TextView label = new TextView(getApplicationContext());
-            label.setLayoutParams(lp);
-            label.setText(String.format(
+            StationPoint station = routeObject.getStation();
+            station.setQueryDeparturesError(String.format(
                         getResources().getString(R.string.messageNetworkError), error));
-            departureLayout.addView(label);
+            updateDepartureTable();
         }
 
-        @Override public void dataDownloadCanceled() {}
+        @Override public void dataDownloadCanceled() {
+            StationPoint station = routeObject.getStation();
+            station.setQueryDeparturesError(getResources().getString(R.string.messageDownloadCanceled));
+            updateDepartureTable();
+        }
     }
 
     private class CanceledRequestDownloadListener implements DataDownloader.DataDownloadListener {

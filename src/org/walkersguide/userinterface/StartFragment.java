@@ -71,7 +71,7 @@ public class StartFragment extends Fragment {
     private int webserverInterfaceVersion;
     private MessageFromStartFragmentListener mSFListener;
     private Globals globalData;
-    private DataDownloader downloader, routeDownloader;
+    private DataDownloader routeDownloader;
     private SettingsManager settingsManager;
     private PositionManager positionManager;
     private AddressManager addressManager;
@@ -110,8 +110,8 @@ public class StartFragment extends Fragment {
         webserverInterfaceVersion = 0;
         DataDownloader downloader = new DataDownloader(getActivity());
         downloader.setDataDownloadListener(new VersionDownloadListener() );
-        downloader.execute( "get",
-                globalData.getSettingsManagerInstance().getServerPath(), "get_version");
+        downloader.execute(
+                globalData.getSettingsManagerInstance().getServerPath() + "/get_version");
 
         // check if we can find a bug report from a previous app crash
         if (getBugReportFile() != null)
@@ -182,7 +182,8 @@ public class StartFragment extends Fragment {
                 if ((Integer) buttonStartRouting.getTag() == 0) {
                     queryFootwayRoute();
                 } else {
-                    cancelRouteDownloadProcess();
+                    if (routeDownloader != null)
+                        routeDownloader.cancelDownloadProcess();
                 }
             }
         });
@@ -270,13 +271,13 @@ public class StartFragment extends Fragment {
         } else if (numberOfTransportSegments == 1) {
             routeDownloader = new DataDownloader(getActivity());
             routeDownloader.setDataDownloadListener(new TransportRouteDownloadListener() );
-            routeDownloader.execute( "post",
+            routeDownloader.execute(
                     globalData.getSettingsManagerInstance().getServerPath() + "/get_transport_routes",
                     requestJson.toString() );
         } else {
             routeDownloader = new DataDownloader(getActivity());
             routeDownloader.setDataDownloadListener(new RouteDownloadListener() );
-            routeDownloader.execute( "post",
+            routeDownloader.execute(
                     globalData.getSettingsManagerInstance().getServerPath() + "/get_route",
                     requestJson.toString() );
         }
@@ -313,22 +314,6 @@ public class StartFragment extends Fragment {
         Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
         buttonStartRouting.setTag(1);
         buttonStartRouting.setText(getResources().getString(R.string.buttonStartRoutingClicked));
-    }
-
-    private void cancelRouteDownloadProcess() {
-        routeDownloader.cancelDownloadProcess();
-        JSONObject requestJson = new JSONObject();
-        try {
-            requestJson.put("language", Locale.getDefault().getLanguage());
-            requestJson.put("session_id", globalData.getSessionId());
-        } catch (JSONException e) {
-            return;
-        }
-        routeDownloader = new DataDownloader(getActivity());
-        routeDownloader.setDataDownloadListener(new CanceledRequestDownloadListener() );
-        routeDownloader.execute( "post",
-                globalData.getSettingsManagerInstance().getServerPath() + "/cancel_request",
-                requestJson.toString() );
     }
 
     public void updateRouteRequest() {
@@ -551,7 +536,7 @@ public class StartFragment extends Fragment {
                     }
                     DataDownloader downloader = new DataDownloader(getActivity());
                     downloader.setDataDownloadListener(new BugReportDownloadListener() );
-                    downloader.execute( "post",
+                    downloader.execute(
                             globalData.getSettingsManagerInstance().getServerPath() + "/get_bug_report",
                             requestJson.toString() );
                     file.delete();
@@ -1178,7 +1163,7 @@ public class StartFragment extends Fragment {
         progressHandler.removeCallbacks(progressUpdater);
         settingsManager.setRouteRequest(sourceRoute);
         if (routeDownloader != null) {
-            cancelRouteDownloadProcess();
+            routeDownloader.cancelDownloadProcess();
         }
     }
 
@@ -1418,6 +1403,19 @@ public class StartFragment extends Fragment {
             Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
             buttonStartRouting.setTag(0);
             buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            // stop server thread
+            JSONObject requestJson = new JSONObject();
+            try {
+                requestJson.put("language", Locale.getDefault().getLanguage());
+                requestJson.put("session_id", globalData.getSessionId());
+            } catch (JSONException e) {
+                return;
+            }
+            DataDownloader downloader = new DataDownloader(getActivity());
+            downloader.setDataDownloadListener(new CanceledRequestDownloadListener() );
+            downloader.execute(
+                    globalData.getSettingsManagerInstance().getServerPath() + "/cancel_request",
+                    requestJson.toString() );
         }
     }
 
@@ -1455,6 +1453,19 @@ public class StartFragment extends Fragment {
             Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
             buttonStartRouting.setTag(0);
             buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            // stop server thread
+            JSONObject requestJson = new JSONObject();
+            try {
+                requestJson.put("language", Locale.getDefault().getLanguage());
+                requestJson.put("session_id", globalData.getSessionId());
+            } catch (JSONException e) {
+                return;
+            }
+            DataDownloader downloader = new DataDownloader(getActivity());
+            downloader.setDataDownloadListener(new CanceledRequestDownloadListener() );
+            downloader.execute(
+                    globalData.getSettingsManagerInstance().getServerPath() + "/cancel_request",
+                    requestJson.toString() );
         }
     }
 

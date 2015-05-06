@@ -35,9 +35,9 @@ public class SettingsManager {
     }
 
     // final settings
-    private static final int interfaceVersion = 3;
+    private static final int interfaceVersion = 4;
     private static final String programDataFolder = "WalkersGuide";
-    private static final String defaultHostURL = "http://walkersguide.org";
+    private static final String defaultHostURL = "https://walkersguide.org";
     private static final int defaultPort = 19021;
     private static final Double[] routeFactorArray = new Double[]{1.0, 1.5, 2.0, 3.0, 4.0};
     private static final double defaultRouteFactor = 2.0;
@@ -182,8 +182,6 @@ public class SettingsManager {
     }
 
     public String getHostURL() {
-        if (! this.hostURL.startsWith("http"))
-            return "http://" + this.hostURL;
         return this.hostURL;
     }
 
@@ -297,6 +295,10 @@ public class SettingsManager {
             JSONObject jsonServerSettings = jsonApplicationSettingsObject.getJSONObject("server");
             try {
                 this.hostURL = jsonServerSettings.getString("host");
+                if (this.hostURL.startsWith("http://"))
+                    this.hostURL = this.hostURL.replace("http://", "");
+                if (! this.hostURL.startsWith("https://"))
+                    this.hostURL = "https://" + this.hostURL;
             } catch (JSONException e) {
                 this.hostURL = this.defaultHostURL;
             }

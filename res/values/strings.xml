@@ -31,6 +31,7 @@
     <string name="messageEmptyJSONObject">Unable to create route.</string>
     <string name="messageMultipleTransportSegments">At the moment only one public transport route segment is permitted.</string>
     <string name="messageRouteComputationStarted">Route computation started.</string>
+    <string name="messageRouteComputationCanceled">Route computation canceled</string>
     <string name="labelFootwayPlaceholder">Placeholder for a walking route segment</string>
     <string name="labelTransportPlaceholder">Placeholder of a public transport route segment</string>
     <string name="messageVersionRequestFailed">Unable to get the version of the webserver interface.</string>
@@ -162,7 +163,7 @@
     <string name="messageSegmentDescFootway">%1$d Meters at %2$s (%3$s)</string>
     <string name="messageSegmentDescTransport">Travel with %1$s, Departure at %2$s, Duration: %3$s, %4$d intermediate stops.</string>
     <string name="messageSegmentDescStart">This route starting point is %d meters from here.</string>
-    <string name="messageDistanceAndBearing">%1$d m, %2$s;     Compass: %3$s (%4$d°)</string>
+    <string name="messageDistanceAndBearing">%1$d m, %2$s;     Compass: %3$s</string>
     <string name="messagePointProgress">Point %1$d of %2$d</string>
 
     <!-- Dialog: simulationDialog -->
@@ -432,6 +433,9 @@
     <string name="labelTrafficSignals">Traffic signals: Yes (%d nearby)</string>
     <string name="labelNoTrafficSignals">Traffic signals: No</string>
     <string name="labelNumberOfIntersectionWays">Intersection with %d streets</string>
+    <string name="radioButtonWalkingDirection">Walking direction (%s)</string>
+    <string name="radioButtonDirectionNorth">Northward</string>
+    <string name="radioButtonDirectionCompass">Compass (%s)</string>
     <string name="labelWithinBuildingYes">Within building: Yes</string>
     <string name="labelWithinBuildingNo">Within building: No</string>
     <string name="labelWithinBuildingName">Within building: %s</string>
@@ -467,8 +471,12 @@
     <string name="labelInterWayDetails">%1$d. %2$s: %3$s</string>
     <string name="labelInterWayDetailsNextWay">(*) %1$d. %2$s: %3$s</string>
     <string name="labelTrafficSignalDistanceAndBearing">%1$d m, %2$s: %3$s</string>
-    <string name="labelDepartureTableRow">%1$s\t%2$s\t%3$s\t%4$s</string>
     <string name="messageInterWayNameNextPoint">%s, Next route point</string>
+    <string name="labelDepartureTableRow">%1$s\t%2$s\t%3$d Min\t%4$s</string>
+    <string name="radioButtonDeparturesNextHour">Current departures</string>
+    <string name="radioButtonDeparturesNextTwoHours">In one Hour</string>
+    <string name="radioButtonAllDepartures">Later departures</string>
+    <string name="messageFoundNoDepartures">No departures found</string>
 
     <!-- Dialog: IntersectionWayDialog -->
     <string name="labelInterWayDialogHeading">Name: %1$s (%2$s)</string>
@@ -518,6 +526,7 @@
     <string name="messageTransmissionError">Transmission error: %s</string>
     <string name="messageReadContentsError">Read error: %s</string>
     <string name="messageJSONParseError">JSON parsing error: %s</string>
+    <string name="messageDownloadCanceled">Download canceled</string>
 
     <!-- Class: ObjectParser -->
     <string name="messageRouteObjectParsingError">Invalid route: One or multiple route objects could not be parsed</string>
@@ -547,6 +556,7 @@
     <string name="messageErrorFromServer">Error: %s</string>
     <string name="messageJSONError">Error during : %s</string>
     <string name="messageNetworkError">Due to an network error, the navigation server is not accessible.\n\n%s</string>
+    <string name="messagePleaseWait">Please wait...</string>
 
     <!-- direction values -->
     <string name="directionStraightforward">straight ahead</string>

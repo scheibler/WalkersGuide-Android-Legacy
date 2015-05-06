@@ -31,6 +31,7 @@
     <string name="messageEmptyJSONObject">Die Route konnte nicht erstellt werden.</string>
     <string name="messageMultipleTransportSegments">Derzeit darf nur ein Wegsegment per ÖPNV zurückgelegt werden.</string>
     <string name="messageRouteComputationStarted">Routenberechnung wurde gestartet.</string>
+    <string name="messageRouteComputationCanceled">Routenberechnung abgebrochen</string>
     <string name="labelFootwayPlaceholder">Platzhalter für eine zu Fuß zurückzulegende Strecke</string>
     <string name="labelTransportPlaceholder">Platzhalter für eine per ÖPNV zurückzulegende Strecke</string>
     <string name="messageVersionRequestFailed">Version des Serverinterfaces nicht ermittelbar: Unbekannter Fehler</string>
@@ -155,7 +156,7 @@
     <string name="messagePointDescStationDestination">Zielpunkt: %s</string>
     <string name="messagePointDescWayPointStart">Startpunkt ist dieser Wegpunkt.</string>
     <string name="messagePointDescWayPointInterAhead">Anschließend geradeaus gehen und dem aktuellen Weg folgen.</string>
-    <string name="messagePointDescWayPointInterTurn">Anschließend nach %s abbiegen und dem aktuellen Weg folgen.</string>
+    <string name="messagePointDescWayPointInterTurn">Anschließend %s halten und dem aktuellen Weg folgen.</string>
     <string name="messagePointDescWayPointDestination">Zielpunkt ist dieser Wegpunkt.</string>
     <string name="messageNoFurtherRoutePoint">Kein weiterer Routenpunkt mehr verfügbar</string>
     <string name="messageFirstRoutePoint">Bereits beim ersten Routenpunkt</string>
@@ -166,7 +167,7 @@
     <string name="messageSegmentDescFootway">%1$d Meter auf %2$s (%3$s)</string>
     <string name="messageSegmentDescTransport">Fahrt mit der %1$s, Abfahrt um %2$s, Dauer: %3$s, Anzahl Zwischenstops: %4$d.</string>
     <string name="messageSegmentDescStart">Der Startpunkt der Route ist %d Meter entfernt.</string>
-    <string name="messageDistanceAndBearing">%1$d m, %2$s;     Kompass: %3$s (%4$d°)</string>
+    <string name="messageDistanceAndBearing">%1$d m, %2$s;     Kompass: %3$s</string>
     <string name="messagePointProgress">Punkt %1$d von %2$d</string>
 
     <!-- Dialog: simulationDialog -->
@@ -436,6 +437,9 @@
     <string name="labelTrafficSignals">Ampeln: Ja (%d in der Nähe)</string>
     <string name="labelNoTrafficSignals">Ampeln: Nein</string>
     <string name="labelNumberOfIntersectionWays">Kreuzung mit %d Straßen</string>
+    <string name="radioButtonWalkingDirection">Laufrichtung (%s)</string>
+    <string name="radioButtonDirectionNorth">Eingenordet</string>
+    <string name="radioButtonDirectionCompass">Kompass (%s)</string>
     <string name="labelWithinBuildingYes">Innerhalb von Gebäude: Ja</string>
     <string name="labelWithinBuildingNo">Innerhalb von Gebäude: Nein</string>
     <string name="labelWithinBuildingName">Innerhalb von Gebäude: %s</string>
@@ -471,8 +475,12 @@
     <string name="labelInterWayDetails">%1$d. %2$s: %3$s</string>
     <string name="labelInterWayDetailsNextWay">(*) %1$d. %2$s: %3$s</string>
     <string name="labelTrafficSignalDistanceAndBearing">%1$d m, %2$s: %3$s</string>
-    <string name="labelDepartureTableRow">%1$s\t%2$s\t%3$s\t%4$s</string>
     <string name="messageInterWayNameNextPoint">%s, nächster Routenpunkt</string>
+    <string name="labelDepartureTableRow">%1$s\t%2$s\t%3$d Min\t%4$s</string>
+    <string name="radioButtonDeparturesNextHour">Aktuelle Abfahrten</string>
+    <string name="radioButtonDeparturesNextTwoHours">In einer Stunde</string>
+    <string name="radioButtonAllDepartures">Spätere Abfahrten</string>
+    <string name="messageFoundNoDepartures">Keine Abfahrten gefunden</string>
 
     <!-- Dialog: IntersectionWayDialog -->
     <string name="labelInterWayDialogHeading">Name: %1$s (%2$s)</string>
@@ -522,6 +530,7 @@
     <string name="messageTransmissionError">Übertragungsfehler: %s</string>
     <string name="messageReadContentsError">Lesefehler: %s</string>
     <string name="messageJSONParseError">JSON-Parsing-Fehler: %s</string>
+    <string name="messageDownloadCanceled">Download abgebrochen</string>
 
     <!-- Class: ObjectParser -->
     <string name="messageRouteObjectParsingError">Route nicht valide: Beim Parsen eines der Routenobjecte trat ein Fehler auf.</string>
@@ -550,6 +559,7 @@
     <string name="messageErrorFromServer">Fehler: %s</string>
     <string name="messageJSONError">Fehler bei der Verarbeitung der Serverdaten: %s</string>
     <string name="messageNetworkError">Der Server ist auf Grund eines Netzwerkfehlers nicht erreichbar.\n\n%s</string>
+    <string name="messagePleaseWait">Bitte warten...</string>
 
     <!-- direction values -->
     <string name="directionStraightforward">Geradeaus</string>

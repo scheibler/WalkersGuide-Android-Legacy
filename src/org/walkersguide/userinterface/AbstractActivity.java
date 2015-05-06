@@ -5,11 +5,8 @@ import org.walkersguide.utils.Globals;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.content.IntentSender;
 import android.os.Bundle;
 import android.provider.Settings;
-
-import com.google.android.gms.common.ConnectionResult;
 
 public abstract class AbstractActivity extends Activity
     implements PositionManager.ErrorMessagesListener {
@@ -35,7 +32,6 @@ public abstract class AbstractActivity extends Activity
             globalData.getSensorsManagerInstance().resumeSensors();
             //MediaPlayer mp = MediaPlayer.create(this, R.raw.restored);
             //mp.start();
-            //System.out.println("xxx app resumed from background");
         }
         globalData.stopActivityTransitionTimer();
     }

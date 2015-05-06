@@ -35,8 +35,10 @@ import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.View.AccessibilityDelegate;
 import android.view.ViewGroup;
 import android.view.ViewGroup.MarginLayoutParams;
+import android.view.accessibility.AccessibilityEvent;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -73,6 +75,8 @@ public class RouterFragment extends Fragment {
     private AddressManager addressManager;
     private KeyboardManager keyboardManager;
     private Vibrator vibrator;
+    private AccessibilityDelegate defaultAccessibilityDelegate;
+    private UIElement focusedElement;
     private Point currentLocation, lastSpokenLocation;
     private int currentCompassValue, lastSpokenCompassValue;
     private String currentAddress, gpsStatusText;
@@ -85,7 +89,6 @@ public class RouterFragment extends Fragment {
     private Handler mHandler, gpsStatusHandler;
     private RouteSimulator routeSimulator;
     private GPSStatusUpdater gpsStatusUpdater;
-    private UIElement focusedElement;
     private IntersectionPoint.IntersectionWay lastSpokenWay;
 
     @Override public void onAttach(Activity activity) {
@@ -105,6 +108,15 @@ public class RouterFragment extends Fragment {
         routeSimulator = new RouteSimulator();
         gpsStatusHandler = new Handler();
         gpsStatusUpdater = new GPSStatusUpdater();
+        focusedElement = UIElement.DEFAULT;
+        defaultAccessibilityDelegate = new AccessibilityDelegate() {
+            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
+                super.onPopulateAccessibilityEvent(host, event);
+                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
+                    focusedElement = UIElement.DEFAULT;
+                }
+            }
+        };
         // This makes sure that the container activity has implemented
         // the callback interface. If not, it throws an exception
         try {
@@ -138,6 +150,7 @@ public class RouterFragment extends Fragment {
         // main layout
         Button buttonSwitchRouteView = (Button) mainLayout.findViewById(R.id.buttonSwitchRouteView);
         buttonSwitchRouteView.setTag(0);
+        buttonSwitchRouteView.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonSwitchRouteView.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 Button buttonSwitchRouteView = (Button) mainLayout.findViewById(R.id.buttonSwitchRouteView);
@@ -152,6 +165,7 @@ public class RouterFragment extends Fragment {
         });
 
         Spinner spinnerAdditionalOptions = (Spinner) mainLayout.findViewById(R.id.spinnerAdditionalOptions);
+        spinnerAdditionalOptions.setAccessibilityDelegate(defaultAccessibilityDelegate);
         spinnerAdditionalOptions.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                 String oldOption = ((String) parent.getItemAtPosition(
@@ -172,8 +186,36 @@ public class RouterFragment extends Fragment {
         adapterAdditionalOptions.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerAdditionalOptions.setAdapter(adapterAdditionalOptions);
 
+        TextView labelStatus = (TextView) mainLayout.findViewById(R.id.labelStatus);
+        labelStatus.setAccessibilityDelegate(defaultAccessibilityDelegate);
+
         // next point layout
+        TextView labelNextSegmentDescription = (TextView) nextPointLayout.findViewById(R.id.labelNextSegmentDescription);
+        labelNextSegmentDescription.setAccessibilityDelegate(defaultAccessibilityDelegate);
+        TextView labelNextPointDescription = (TextView) nextPointLayout.findViewById(R.id.labelNextPointDescription);
+        labelNextPointDescription.setAccessibilityDelegate(defaultAccessibilityDelegate);
+        TextView labelDetailInformation = (TextView) nextPointLayout.findViewById(R.id.labelDetailInformation);
+        labelDetailInformation.setAccessibilityDelegate(defaultAccessibilityDelegate);
+        TextView labelCurrentPoint= (TextView) nextPointLayout.findViewById(R.id.labelCurrentPoint);
+        labelCurrentPoint.setAccessibilityDelegate(defaultAccessibilityDelegate);
+        TextView labelDistance= (TextView) nextPointLayout.findViewById(R.id.labelDistance);
+        labelDistance.setAccessibilityDelegate(new AccessibilityDelegate() {
+            @Override public void onPopulateAccessibilityEvent(View host, AccessibilityEvent event) {
+                super.onPopulateAccessibilityEvent(host, event);
+                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
+                    lastSpokenLocation = currentLocation;
+                    focusedElement = UIElement.DISTANCE;
+                }
+                if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_HOVER_ENTER
+                        && focusedElement == UIElement.DISTANCE) {
+                    TextView labelDistance= (TextView) nextPointLayout.findViewById(R.id.labelDistance);
+                    labelDistance.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
+                        }
+            }
+        });
+
         Button buttonPrevPoint= (Button) nextPointLayout.findViewById(R.id.buttonPrevPoint);
+        buttonPrevPoint.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonPrevPoint.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 previousRoutePoint();
@@ -181,6 +223,7 @@ public class RouterFragment extends Fragment {
         });
 
         Button buttonNextPoint= (Button) nextPointLayout.findViewById(R.id.buttonNextPoint);
+        buttonNextPoint.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonNextPoint.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 nextRoutePoint();
@@ -188,6 +231,7 @@ public class RouterFragment extends Fragment {
         });
 
         Button buttonDetails = (Button) nextPointLayout.findViewById(R.id.buttonDetails);
+        buttonDetails.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonDetails.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 if (route == null) {
@@ -203,17 +247,30 @@ public class RouterFragment extends Fragment {
                 }
                 Intent intent = new Intent(getActivity(), RouteObjectDetailsActivity.class);
                 intent.putExtra("route_object", object.toJson().toString());
+                // try to get way segment before this point
+                try {
+                    RouteObjectWrapper prevSegment = route.getRouteObjectAtIndex( route.getListPosition() - 1);
+                    intent.putExtra("prevSegmentBearing", ((FootwaySegment) prevSegment.getFootwaySegment()).getBearing() );
+                } catch (IndexOutOfBoundsException e) {
+                    intent.putExtra("prevSegmentBearing", -1);
+                } catch (NullPointerException e) {
+                    intent.putExtra("prevSegmentBearing", -1);
+                }
                 // try to get way segment after this point
-                RouteObjectWrapper nextSegment = route.getRouteObjectAtIndex( route.getListPosition() + 1);
-                if (nextSegment.getFootwaySegment() != null)
+                try {
+                    RouteObjectWrapper nextSegment = route.getRouteObjectAtIndex( route.getListPosition() + 1);
                     intent.putExtra("nextSegmentBearing", ((FootwaySegment) nextSegment.getFootwaySegment()).getBearing() );
-                else
+                } catch (IndexOutOfBoundsException e) {
                     intent.putExtra("nextSegmentBearing", -1);
+                } catch (NullPointerException e) {
+                    intent.putExtra("nextSegmentBearing", -1);
+                }
                 startActivityForResult(intent, OBJECTDETAILS);
             }
         });
 
         Spinner spinnerPresets = (Spinner) nextPointLayout.findViewById(R.id.spinnerPresets);
+        spinnerPresets.setAccessibilityDelegate(defaultAccessibilityDelegate);
         spinnerPresets.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                 int presetId = ((POIPreset) parent.getItemAtPosition(pos)).getId();
@@ -240,6 +297,7 @@ public class RouterFragment extends Fragment {
 
         Button buttonSimulation = (Button) nextPointLayout.findViewById(R.id.buttonSimulation);
         buttonSimulation.setTag(0);
+        buttonSimulation.setAccessibilityDelegate(defaultAccessibilityDelegate);
         buttonSimulation.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 if (route == null) {
@@ -253,12 +311,22 @@ public class RouterFragment extends Fragment {
 
         // route list sub view
         ListView listview = (ListView) routeListLayout.findViewById(R.id.listRouteSegments);
+        listview.setAccessibilityDelegate(defaultAccessibilityDelegate);
         listview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override public void onItemClick(AdapterView<?> parent, final View view,
                         int position, long id) {
                 RouteObjectWrapper routeObject = (RouteObjectWrapper) parent.getItemAtPosition(position);
                 Intent intent = new Intent(getActivity(), RouteObjectDetailsActivity.class);
                 intent.putExtra("route_object", routeObject.toJson().toString());
+                // try to get way segment before this point
+                try {
+                    RouteObjectWrapper prevSegment = (RouteObjectWrapper) parent.getItemAtPosition(position-1);
+                    intent.putExtra("prevSegmentBearing", ((FootwaySegment) prevSegment.getFootwaySegment()).getBearing() );
+                } catch (IndexOutOfBoundsException e) {
+                    intent.putExtra("prevSegmentBearing", -1);
+                } catch (NullPointerException e) {
+                    intent.putExtra("prevSegmentBearing", -1);
+                }
                 // try to get way segment after this point
                 try {
                     RouteObjectWrapper nextSegment = (RouteObjectWrapper) parent.getItemAtPosition(position+1);
@@ -389,6 +457,7 @@ public class RouterFragment extends Fragment {
         labelDistance.setText("");
         TextView labelCurrentPoint= (TextView) nextPointLayout.findViewById(R.id.labelCurrentPoint);
         labelCurrentPoint.setText("");
+
         RouteObjectWrapper nextPoint = route.getNextPoint();
         RouteObjectWrapper prevPoint = route.getPreviousPoint();
         RouteObjectWrapper segment = route.getNextSegment();
@@ -655,7 +724,7 @@ public class RouterFragment extends Fragment {
         labelDistance.setText( String.format(
                 getResources().getString(R.string.messageDistanceAndBearing),
                 currentDistance, HelperFunctions.getFormatedDirection(currentBearing - currentCompassValue),
-                HelperFunctions.getCompassDirection(currentCompassValue), currentCompassValue));
+                HelperFunctions.getCompassDirection(currentCompassValue)));
         if (settingsManager.useGPSAsBearingSource())
             labelDistance.setText(labelDistance.getText().toString() + " (GPS)");
 
@@ -811,12 +880,24 @@ public class RouterFragment extends Fragment {
                 RouteObjectWrapper routeObject = (RouteObjectWrapper) listView.getItemAtPosition(view.getId());
                 Intent intent = new Intent(getActivity(), RouteObjectDetailsActivity.class);
                 intent.putExtra("route_object", routeObject.toJson().toString());
+                // try to get way segment before this point
+                try {
+                    RouteObjectWrapper prevSegment = (RouteObjectWrapper) listView.getItemAtPosition(view.getId()-1);
+                    intent.putExtra("prevSegmentBearing", ((FootwaySegment) prevSegment.getFootwaySegment()).getBearing() );
+                } catch (IndexOutOfBoundsException e) {
+                    intent.putExtra("prevSegmentBearing", -1);
+                } catch (NullPointerException e) {
+                    intent.putExtra("prevSegmentBearing", -1);
+                }
                 // try to get way segment after this point
-                RouteObjectWrapper nextSegment = (RouteObjectWrapper) listView.getItemAtPosition(view.getId()+1);
-                if (nextSegment.getFootwaySegment() != null)
+                try {
+                    RouteObjectWrapper nextSegment = (RouteObjectWrapper) listView.getItemAtPosition(view.getId()+1);
                     intent.putExtra("nextSegmentBearing", ((FootwaySegment) nextSegment.getFootwaySegment()).getBearing() );
-                else
+                } catch (IndexOutOfBoundsException e) {
                     intent.putExtra("nextSegmentBearing", -1);
+                } catch (NullPointerException e) {
+                    intent.putExtra("nextSegmentBearing", -1);
+                }
                 startActivityForResult(intent, OBJECTDETAILS);
                 dialog.dismiss();
             }
@@ -1016,6 +1097,7 @@ public class RouterFragment extends Fragment {
         // get new route
         if (globalData.getValue("route") != null) {
             if ((route == null) || ((Boolean) globalData.getValue("newRoute") == true)) {
+                System.out.println("xx route null but new comes from globals");
                 route = (Route) globalData.getValue("route");
                 globalData.setValue("newRoute", false);
                 // change to route list subfragment
@@ -1090,14 +1172,15 @@ public class RouterFragment extends Fragment {
         } else {
             Toast.makeText(getActivity(),
                     getResources().getString(R.string.messagePreviousPoint),
-                    Toast.LENGTH_LONG).show();
+                    Toast.LENGTH_SHORT).show();
         }
         route.previousPoint();
+        lastSpokenLocation = currentLocation;
+        oldBearingValue = -1;
+        pointFoundBearing = false;
         if (currentLocation.distanceTo(route.getNextPoint().getPoint()) > 25) {
-            pointFoundBearing = false;
             pointFoundDistance = false;
         }
-        oldBearingValue = -1;
         // switch to the next route command screen if the route list is shown
         Button buttonSwitchRouteView = (Button) mainLayout.findViewById(R.id.buttonSwitchRouteView);
         if ((Integer) buttonSwitchRouteView.getTag() == 0) {
@@ -1125,18 +1208,21 @@ public class RouterFragment extends Fragment {
                     segment.getFootwaySegment().getDistance(), segment.getFootwaySegment().getName());
             if (segment.getFootwaySegment().getSidewalk() >= 0)
                 instruction += ", " + segment.getFootwaySegment().printSidewalk();
-            Toast.makeText(getActivity(), instruction, Toast.LENGTH_LONG).show();
+            Toast.makeText(getActivity(), instruction, Toast.LENGTH_SHORT).show();
         } else if (segment.getTransportSegment() != null) {
             Toast.makeText(getActivity(),
                     String.format(
                         getResources().getString(R.string.messageNextPointTransport),
                         segment.getTransportSegment().getName(),
                         segment.getTransportSegment().getDepartureTime()),
-                    Toast.LENGTH_LONG).show();
+                    Toast.LENGTH_SHORT).show();
         }
+        lastSpokenLocation = currentLocation;
         oldBearingValue = -1;
         pointFoundBearing = false;
-        pointFoundDistance = false;
+        if (currentLocation.distanceTo(route.getNextPoint().getPoint()) > 25) {
+            pointFoundDistance = false;
+        }
         // switch to the next route command screen if the route list is shown
         Button buttonSwitchRouteView = (Button) mainLayout.findViewById(R.id.buttonSwitchRouteView);
         if ((Integer) buttonSwitchRouteView.getTag() == 0) {
@@ -1188,10 +1274,9 @@ public class RouterFragment extends Fragment {
                         break;
                     if (!processedPOIList.contains(poi)) {
                         processedPOIList.add(poi);
-                        String poiLabel = String.format(
+                        messageToast.setText(String.format(
                                 getResources().getString(R.string.messageLatestPOI),
-                                poi.toString());
-                        messageToast.setText(poiLabel);
+                                poi.toString()));
                         messageToast.show();
                         updateLabelStatus();
                     }
@@ -1227,7 +1312,7 @@ public class RouterFragment extends Fragment {
                     getResources().getString(R.string.locationNameCurrentPosition), location);
             currentLocation.addAccuracy( (int) Math.round(location.getAccuracy()) );
             if (location.getSpeed() < 3.0
-                    && (lastSpokenLocation == null || currentLocation.distanceTo(lastSpokenLocation) > 15)) {
+                    && (lastSpokenLocation == null || currentLocation.distanceTo(lastSpokenLocation) > 20)) {
                 lastSpokenLocation = currentLocation;
                 TextView labelDistance= (TextView) nextPointLayout.findViewById(R.id.labelDistance);
                 messageToast.setText(labelDistance.getText().toString());
@@ -1255,9 +1340,10 @@ public class RouterFragment extends Fragment {
     private class MySensorsListener implements SensorsManager.SensorsListener {
         public void compassValueChanged(int degree) {
             currentCompassValue = degree;
+            updateRouteCurrentPositionFragment();
             Spinner spinnerAdditionalOptions = (Spinner) mainLayout.findViewById(R.id.spinnerAdditionalOptions);
-            if (! ((String) spinnerAdditionalOptions.getSelectedItem()).equals(getResources().getString(R.string.arrayAADisabled)) )
-                updateRouteCurrentPositionFragment();
+            if ( ((String) spinnerAdditionalOptions.getSelectedItem()).equals(getResources().getString(R.string.arrayAALatestPOI)) )
+                updateLabelStatus();
         }
         public void shakeDetected() {
             if (settingsManager.getShakeForNextRoutePoint() == true

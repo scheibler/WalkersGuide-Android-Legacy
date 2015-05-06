@@ -16,12 +16,16 @@ public class StationPoint extends POIPoint {
     private int stationID;
     private int foundInOSMDatabase;
     private String platformNumber;
+    private ArrayList<Departure> nextDepartures;
+    private String queryDeparturesError;
 
     public StationPoint(String name, Double lat, Double lon, String subType) {
     	super(name, lat, lon, "station", subType);
         this.lines = new ArrayList<Line>();
         this.foundInOSMDatabase = -1;
         this.platformNumber = "";
+        this.nextDepartures = null;
+        this.queryDeparturesError = "";
     }
 
     public void addLine(Line l) {
@@ -57,6 +61,22 @@ public class StationPoint extends POIPoint {
 
     public String getPlatformNumber() {
         return this.platformNumber;
+    }
+
+    public ArrayList<Departure> getNextDepartures() {
+        return this.nextDepartures;
+    }
+
+    public void setNextDepartures(ArrayList<Departure> departureList) {
+        this.nextDepartures = departureList;
+    }
+
+    public String getQueryDeparturesError() {
+        return this.queryDeparturesError;
+    }
+
+    public void setQueryDeparturesError(String error) {
+        this.queryDeparturesError = error;
     }
 
     public String toString() {
@@ -167,6 +187,37 @@ public class StationPoint extends POIPoint {
                 return null;
             }
             return jsonObject;
+        }
+    }
+
+    public class Departure {
+
+        private String line;
+        private String direction;
+        private int remaining;
+        private String time;
+
+        public Departure(String line, String direction, int remaining, String time) {
+            this.line = line;
+            this.direction = direction;
+            this.remaining = remaining;
+            this.time = time;
+        }
+
+        public String getLine() {
+            return this.line;
+        }
+
+        public String getDirection() {
+            return this.direction;
+        }
+
+        public int getRemaining() {
+            return this.remaining;
+        }
+
+        public String getTime() {
+            return this.time;
         }
     }
 }

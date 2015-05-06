@@ -48,9 +48,8 @@ public class POIPresetsActivity extends AbstractActivity {
             supportedPOITags = "";
             DataDownloader downloader = new DataDownloader(getApplicationContext());
             downloader.setDataDownloadListener(new DLListener() );
-            downloader.execute( "get",
-                    globalData.getSettingsManagerInstance().getServerPath(),
-                    "/get_all_supported_poi_tags" );
+            downloader.execute(
+                    globalData.getSettingsManagerInstance().getServerPath() + "/get_all_supported_poi_tags");
         }
 
         // load layout

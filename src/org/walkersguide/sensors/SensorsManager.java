@@ -1,14 +1,11 @@
 package org.walkersguide.sensors;
 
-import java.text.DateFormat;
-import java.util.Date;
-
 import org.walkersguide.R;
-import org.walkersguide.utils.DataLogger;
 import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.SettingsManager;
 
 import android.content.Context;
+import android.hardware.GeomagneticField;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -29,19 +26,19 @@ public class SensorsManager {
     private SensorsListener sListener;
     private Context mContext;
     private Toast messageToast;
-    private DataLogger dataLogger;
 
     // sensors
     private SensorManager sensorManager;
     private Sensor sensorAccelerometer;
     private Sensor sensorMagneticField;
     private SensorChangesListener sensorChangesListener;
+    private long timeOfLastCompassValue;
 
     // compass specific variables
     private float[] valuesMagneticField;
     private boolean hasMagneticFieldData;
-    private int bearingFromMagneticField;
-    private int numberOfpotentialOutliers;
+    private float differenceToTrueNorth;
+    private int bearingOfMagneticField[];
 
     // accelerometer specific variables
     // static ones
@@ -67,9 +64,6 @@ public class SensorsManager {
         bearingOfDevice = -1;
         messageToast = Toast.makeText(mContext, "", Toast.LENGTH_SHORT);
         settingsManager = ((Globals) mContext.getApplicationContext()).getSettingsManagerInstance();
-        dataLogger = new DataLogger(String.format("compass_%s.txt",
-                DateFormat.getDateInstance().format(new Date(System.currentTimeMillis())) ));
-        dataLogger.appendLog("-- logging started --\nmc\tdiff\tbfm\tbfgps\thasB\ttime\n");
 
         // sensor variables
         sensorManager = (SensorManager)mContext.getSystemService(Context.SENSOR_SERVICE);
@@ -80,8 +74,11 @@ public class SensorsManager {
         // compass specific variables
         valuesMagneticField = new float[3];
         hasMagneticFieldData = false;
-        bearingFromMagneticField = -1;
-        numberOfpotentialOutliers = 0;
+        differenceToTrueNorth = 0.0f;
+        timeOfLastCompassValue = System.currentTimeMillis();
+        bearingOfMagneticField = new int[5];
+        for (int i : bearingOfMagneticField)
+            i = 0;
 
         // accelerometer specific variables
         valuesAccelerometer = new float[3];
@@ -123,11 +120,11 @@ public class SensorsManager {
         // accelerometer sensor
         sensorManager.registerListener(sensorChangesListener,
                 sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
-                SensorManager.SENSOR_DELAY_NORMAL);
+                SensorManager.SENSOR_DELAY_UI);
         // magnetic field sensor
         sensorManager.registerListener(sensorChangesListener,
                 sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
-                SensorManager.SENSOR_DELAY_NORMAL);
+                SensorManager.SENSOR_DELAY_UI);
     }
 
     public void stopSensors() {
@@ -182,21 +179,34 @@ public class SensorsManager {
                 float[] orientationValues = new float[3];
                 boolean success = SensorManager.getRotationMatrix(
                         matrixR, matrixI, valuesAccelerometer, valuesMagneticField);
-                if(success){
+                if(success && System.currentTimeMillis() - timeOfLastCompassValue > 200) {
                     SensorManager.getOrientation(matrixR, orientationValues);
-                    int newValue = ((int) Math.round(Math.toDegrees(orientationValues[0])) + 360) % 360;
-                    int diff = Math.abs(bearingFromMagneticField - newValue);
-                    bearingFromMagneticField = newValue;
-                    if (diff > 45 && diff < 315) {
-                        numberOfpotentialOutliers++;
-                    } else {
-                        numberOfpotentialOutliers = 0;
+                    System.arraycopy(bearingOfMagneticField, 0, bearingOfMagneticField, 1, bearingOfMagneticField.length-1);
+                    bearingOfMagneticField[0] = ((int) Math.round(Math.toDegrees(orientationValues[0]) + differenceToTrueNorth) + 360) % 360;
+                    timeOfLastCompassValue = System.currentTimeMillis();
+
+                    // calculate average compass value
+                    // Mitsuta method: http://abelian.org/vlf/bearings.html
+                    int sum = bearingOfMagneticField[0];
+                    int D = bearingOfMagneticField[0];
+                    int delta = 0;
+                    for (int i=1; i<bearingOfMagneticField.length; i++) {
+                        delta = bearingOfMagneticField[i] - D;
+                        if (delta < -180) {
+                            D = D + delta + 360;
+                        } else if (delta < 180) {
+                            D = D + delta;
+                        } else {
+                            D = D + delta - 360;
+                        }
+                        sum += D;
                     }
+                    int average = (((int) sum / bearingOfMagneticField.length) + 360) % 360;
+
                     // decide, if we accept the compass value as new device wide bearing value
                     if (settingsManager.useCompassAsBearingSource()
-                            && (numberOfpotentialOutliers == 0 || numberOfpotentialOutliers > 3)
-                            && bearingOfDevice != bearingFromMagneticField) {
-                        bearingOfDevice = bearingFromMagneticField;
+                            && bearingOfDevice != average) {
+                        bearingOfDevice = average;
                         if (sListener != null)
                             sListener.compassValueChanged(bearingOfDevice);
                     }
@@ -206,8 +216,8 @@ public class SensorsManager {
     }
 
     private class MyPositionListener implements PositionManager.PositionListener {
-        private static final int smallThresholdValue = 25;
-        private static final int bigThresholdValue = 40;
+        private static final int smallThresholdValue = 20;
+        private static final int bigThresholdValue = 30;
         private static final int maxNumberOfMatches = 5;
         private int matchCounter;
 
@@ -216,14 +226,25 @@ public class SensorsManager {
         }
 
         public void locationChanged(Location location) {
-            int bearingFromGPS = bearingFromMagneticField;
+            // geomagnetic offset
+            if (location.hasAltitude()) {
+                GeomagneticField geoField = new GeomagneticField(
+                        Double.valueOf(location.getLatitude()).floatValue(),
+                        Double.valueOf(location.getLongitude()).floatValue(),
+                        Double.valueOf(location.getAltitude()).floatValue(),
+                        System.currentTimeMillis());
+                differenceToTrueNorth = geoField.getDeclination();
+            }
+
+            // load bearing values of GPS and compass
+            int bearingOfGPS = bearingOfMagneticField[0];
             if (location.hasBearing())
-                bearingFromGPS = (int) location.getBearing();
+                bearingOfGPS = (int) location.getBearing();
 
             // check, if the diff between the location bearing value and the current compass is
             // smaller than the defined threshold
             // 0 <= diff <= 180
-            int diff = Math.abs(bearingFromGPS - bearingFromMagneticField);
+            int diff = Math.abs(bearingOfGPS - bearingOfMagneticField[0]);
             if (diff > 180)
                 diff = 360 - diff;
             if (location.hasSpeed() && location.getSpeed() > 3.0) {
@@ -244,30 +265,22 @@ public class SensorsManager {
                 }
             }
 
-            // logging
-            dataLogger.appendLog(
-                    String.format("%d\t%d\t%d\t%d\t%b\t%s", matchCounter, diff,
-                        bearingFromMagneticField, bearingFromGPS, location.hasBearing(),
-                        DateFormat.getTimeInstance().format(new Date(location.getTime()))) );
-
             if (matchCounter == 0 && settingsManager.useGPSAsBearingSource()) {
                 settingsManager.setBearingSource(SettingsManager.BearingSource.COMPASS);
                 messageToast.setText(
                         mContext.getResources().getString(R.string.messageSwitchedToCompass));
                 messageToast.show();
-                dataLogger.appendLog("-- switched to compass --");
             }
             if (matchCounter == maxNumberOfMatches && settingsManager.useCompassAsBearingSource()) {
                 settingsManager.setBearingSource(SettingsManager.BearingSource.GPS);
                 messageToast.setText(
                         mContext.getResources().getString(R.string.messageSwitchedToGPS));
                 messageToast.show();
-                dataLogger.appendLog("-- switched to gps --");
             }
 
             if (settingsManager.useGPSAsBearingSource()
-                    && bearingFromGPS != bearingOfDevice) {
-                bearingOfDevice = bearingFromGPS;
+                    && bearingOfGPS != bearingOfDevice) {
+                bearingOfDevice = bearingOfGPS;
                 if (sListener != null)
                     sListener.compassValueChanged(bearingOfDevice);
             }

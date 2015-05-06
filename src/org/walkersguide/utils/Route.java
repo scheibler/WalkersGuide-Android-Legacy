@@ -1,13 +1,11 @@
 package org.walkersguide.utils;
 
 import java.util.ArrayList;
-import java.util.Collections;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.walkersguide.R;
 import org.walkersguide.routeobjects.FootwaySegment;
-import org.walkersguide.routeobjects.Point;
 import org.walkersguide.routeobjects.RouteObjectWrapper;
 
 

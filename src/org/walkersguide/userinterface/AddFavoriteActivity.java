@@ -1,16 +1,12 @@
 package org.walkersguide.userinterface;
 
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.walkersguide.R;
 import org.walkersguide.routeobjects.POIPoint;
 import org.walkersguide.routeobjects.Point;
 import org.walkersguide.sensors.PositionManager;
-import org.walkersguide.utils.DataDownloader;
 import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.SettingsManager;
 
-import android.content.Intent;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -32,7 +28,6 @@ public class AddFavoriteActivity extends AbstractActivity {
     private LinearLayout mainLayout;
     private Point currentPosition;
     private Toast messageToast;
-    private boolean storeOnServer = false;
 
 	@Override protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -94,23 +89,11 @@ public class AddFavoriteActivity extends AbstractActivity {
                 }
                 POIPoint favorite = new POIPoint(editName.getText().toString(),
                         currentPosition.getLatitude(), currentPosition.getLongitude(), "favorite");
-                if (storeOnServer) {
-                    // store on server
-                    DataDownloader downloader = new DataDownloader(AddFavoriteActivity.this);
-                    downloader.setDataDownloadListener(new DLListener() );
-                    downloader.execute( "get",
-                            settingsManager.getServerPath(), "/add_marker?"
-                            + "lat=" + favorite.getLatitude()
-                            + "&lon=" + favorite.getLongitude()
-                            + "&name=" + favorite.getName() );
-                } else {
-                    // store favorite localy
-                    settingsManager.addPointToFavorites(favorite);
-                    messageToast.setText(getResources().getString(R.string.messageStoredFavoriteLocally));
-                    messageToast.show();
-                    setResult(RESULT_OK, null);
-                    finish();
-                }
+                settingsManager.addPointToFavorites(favorite);
+                messageToast.setText(getResources().getString(R.string.messageStoredFavoriteLocally));
+                messageToast.show();
+                setResult(RESULT_OK, null);
+                finish();
             }
         });
 
@@ -154,39 +137,6 @@ public class AddFavoriteActivity extends AbstractActivity {
                     getResources().getString(R.string.locationNameCurrentPosition), location);
             updateUserInterface();
         }
-    }
-
-    private class DLListener implements DataDownloader.DataDownloadListener {
-        @Override public void dataDownloadedSuccessfully(JSONObject jsonObject) {
-            CharSequence  text = "";
-            try {
-                if (jsonObject == null)
-                    text = getResources().getString(R.string.messageUnknownError);
-                if (! jsonObject.getString("error").equals(""))
-                    text = String.format(getResources().getString(R.string.messageErrorFromServer),
-                            jsonObject.getString("error") );;
-                if (jsonObject.getString("status").equals("ok")) {
-                    messageToast.setText(getResources().getString(R.string.messageStoredFavoriteRemotely));
-                    messageToast.show();
-                    setResult(RESULT_OK, null);
-                    finish();
-                }
-            } catch (JSONException e) {
-                text = String.format(getResources().getString(R.string.messageJSONError),
-                        e.getMessage() );
-            }
-            Intent intent = new Intent(getApplicationContext(), DialogActivity.class);
-            intent.putExtra("message", text);
-            startActivity(intent);
-        }
-
-        @Override public void dataDownloadFailed(String error) {
-            Intent intent = new Intent(getApplicationContext(), DialogActivity.class);
-            intent.putExtra("message", String.format(
-                        getResources().getString(R.string.messageNetworkError), error) );
-        }
-
-        @Override public void dataDownloadCanceled() {}
     }
 
 }

@@ -9,9 +9,9 @@ import java.text.SimpleDateFormat;
 public class DataLogger {
     private File logFile;
 
-    public DataLogger(String fileName) {
+    public DataLogger(String fileName, boolean overwrite) {
         logFile = new File(fileName);
-        if (!logFile.exists()) {
+        if (!logFile.exists() || overwrite == true) {
             try {
                 logFile.createNewFile();
             } catch (IOException e) {

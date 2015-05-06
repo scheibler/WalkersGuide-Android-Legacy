@@ -190,7 +190,8 @@ public class TransportRouteChooserActivity extends AbstractActivity {
         dialog.setOnKeyListener(new OnKeyListener() {
             @Override public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
                 if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
-                    cancelRouteDownloadProcess();
+                    if (routeDownloader != null)
+                        routeDownloader.cancelDownloadProcess();
                     dialog.dismiss();
                 }
                 return true;
@@ -211,10 +212,10 @@ public class TransportRouteChooserActivity extends AbstractActivity {
                 if (tag > 0) {
                     int groupPosition = Math.round(tag / 1000000);
                     int childPosition = tag - groupPosition*1000000 - 1;
-                    System.out.println("xx- gid = " + groupPosition + " cid = " + childPosition);
                     queryFootwayRoute(groupPosition, childPosition);
                 } else {
-                    cancelRouteDownloadProcess();
+                    if (routeDownloader != null)
+                        routeDownloader.cancelDownloadProcess();
                 }
             }
         });
@@ -222,7 +223,8 @@ public class TransportRouteChooserActivity extends AbstractActivity {
         Button buttonCancel = (Button) dialog.findViewById(R.id.buttonCancel);
         buttonCancel.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
-                cancelRouteDownloadProcess();
+                if (routeDownloader != null)
+                    routeDownloader.cancelDownloadProcess();
                 dialog.dismiss();
             }
         });
@@ -293,7 +295,7 @@ public class TransportRouteChooserActivity extends AbstractActivity {
         // send request
         routeDownloader = new DataDownloader(TransportRouteChooserActivity.this);
         routeDownloader.setDataDownloadListener(new SingleRouteDownloadListener() );
-        routeDownloader.execute( "post",
+        routeDownloader.execute(
                 globalData.getSettingsManagerInstance().getServerPath() + "/get_route",
                 requestJson.toString() );
         Toast.makeText(getApplicationContext(), getResources().getString(R.string.messageRouteComputationStarted),
@@ -305,27 +307,10 @@ public class TransportRouteChooserActivity extends AbstractActivity {
         buttonStartRouting.setTag((Integer) buttonStartRouting.getTag() * -1);
     }
 
-    private void cancelRouteDownloadProcess() {
-        if (routeDownloader == null)
-            return;
-        routeDownloader.cancelDownloadProcess();
-        JSONObject requestJson = new JSONObject();
-        try {
-            requestJson.put("language", Locale.getDefault().getLanguage());
-            requestJson.put("session_id", globalData.getSessionId());
-        } catch (JSONException e) {
-            return;
-        }
-        routeDownloader = new DataDownloader(this);
-        routeDownloader.setDataDownloadListener(new CanceledRequestDownloadListener() );
-        routeDownloader.execute( "post",
-                globalData.getSettingsManagerInstance().getServerPath() + "/cancel_request",
-                requestJson.toString() );
-    }
-
     @Override public void onPause() {
         super.onPause();
-        cancelRouteDownloadProcess();
+        if (routeDownloader != null)
+            routeDownloader.cancelDownloadProcess();
     }
 
     @Override public void onResume() {
@@ -372,6 +357,19 @@ public class TransportRouteChooserActivity extends AbstractActivity {
             Button buttonStartRouting = (Button) dialog.findViewById(R.id.buttonOK);
             buttonStartRouting.setTag((Integer) buttonStartRouting.getTag() * -1);
             buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            // cancel server thread
+            JSONObject requestJson = new JSONObject();
+            try {
+                requestJson.put("language", Locale.getDefault().getLanguage());
+                requestJson.put("session_id", globalData.getSessionId());
+            } catch (JSONException e) {
+                return;
+            }
+            DataDownloader cancelDownloader = new DataDownloader(getApplicationContext());
+            cancelDownloader.setDataDownloadListener(new CanceledRequestDownloadListener() );
+            cancelDownloader.execute(
+                    globalData.getSettingsManagerInstance().getServerPath() + "/cancel_request",
+                    requestJson.toString() );
         }
     }
 

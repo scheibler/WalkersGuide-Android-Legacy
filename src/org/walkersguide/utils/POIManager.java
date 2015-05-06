@@ -27,7 +27,7 @@ public class POIManager {
     private Toast messageToast;
     private boolean downloadInProcess;
     private POIPreset preset;
-    private DataDownloader downloader;
+    private DataDownloader poiDownloader;
 
     public POIManager(Context context) {
         this.mContext = context;
@@ -44,21 +44,8 @@ public class POIManager {
 
     public void cancel() {
         downloadInProcess = false;
-        if (downloader != null) {
-            downloader.cancelDownloadProcess();
-            JSONObject requestJson = new JSONObject();
-            try {
-                requestJson.put("language", Locale.getDefault().getLanguage());
-                requestJson.put("session_id", globalData.getSessionId());
-            } catch (JSONException e) {
-                return;
-            }
-            downloader = new DataDownloader(mContext);
-            downloader.setDataDownloadListener(new CanceledRequestDownloadListener() );
-            downloader.execute( "post",
-                    globalData.getSettingsManagerInstance().getServerPath() + "/cancel_request",
-                    requestJson.toString() );
-            downloader = null;
+        if (poiDownloader != null) {
+            poiDownloader.cancelDownloadProcess();
             preset.setLastLocation(null);
         }
     }
@@ -71,7 +58,6 @@ public class POIManager {
 
         // get the current preset by means of the given preset id
         preset = settingsManager.getPOIPreset(newPresetId);
-        System.out.println("xx reset = " + preset.toString());
 
         // decide, if the program should download new poi data from server
         boolean downloadNewData = false;
@@ -123,9 +109,9 @@ public class POIManager {
             } catch (JSONException e) {
                 return;
             }
-            downloader = new DataDownloader(mContext);
-            downloader.setDataDownloadListener(new POIDownloadListener() );
-            downloader.execute( "post",
+            poiDownloader = new DataDownloader(mContext);
+            poiDownloader.setDataDownloadListener(new POIDownloadListener() );
+            poiDownloader.execute(
                     globalData.getSettingsManagerInstance().getServerPath() + "/get_poi",
                     requestJson.toString() );
             return;
@@ -133,14 +119,17 @@ public class POIManager {
 
         // but maybe the poi list nevertheless must be sorted
         boolean sort = false;
-        if (newLocation.distanceTo(preset.getLastLocation()) > 10) {
-            messageToast.setText("mehr als 10 meter entfernt");
-            sort = true;
-            System.out.println("xx sort: mehr als 10 meter");
-        } else if (newCompassValue != preset.getLastCompassValue()) {
+        int compassDifference = Math.abs(newCompassValue - preset.getLastCompassValue());
+        if (compassDifference > 180)
+            compassDifference = 360 - compassDifference;
+        if (compassDifference >= 20) {
             messageToast.setText("compass changed");
             sort = true;
             System.out.println("xx sort: kompass");
+        } else if (newLocation.distanceTo(preset.getLastLocation()) > 10) {
+            messageToast.setText("mehr als 10 meter entfernt");
+            sort = true;
+            System.out.println("xx sort: mehr als 10 meter");
         } else if(newPresetRange < preset.getRange()) {
             messageToast.setText("smaller radius");
             sort = true;
@@ -157,9 +146,6 @@ public class POIManager {
             return;
         }
         
-        messageToast.setText("kein update");
-        // messageToast.show();
-        System.out.println("xx poimanager kein update");
         poiListener.poiPresetUpdateSuccessful();
     }
 
@@ -199,6 +185,7 @@ public class POIManager {
 
     private class POIDownloadListener implements DataDownloader.DataDownloadListener {
         @Override public void dataDownloadedSuccessfully(JSONObject jsonObject) {
+            poiDownloader = null;
             downloadInProcess = false;
             try {
                 sortPOIList( ObjectParser.parsePointList(jsonObject) );
@@ -206,19 +193,30 @@ public class POIManager {
                 preset.setLastLocation(null);
                 poiListener.poiPresetUpdateFailed(e.getMessage());
             }
-            downloader = null;
         }
 
         @Override public void dataDownloadFailed(String error) {
+            poiDownloader = null;
             downloadInProcess = false;
-            downloader = null;
             preset.setLastLocation(null);
             poiListener.poiPresetUpdateFailed( String.format(
                     mContext.getResources().getString(R.string.messageNetworkError), error));
         }
 
         @Override public void dataDownloadCanceled() {
-            System.out.println("xx poiManager onCancel");
+            poiDownloader = null;
+            JSONObject requestJson = new JSONObject();
+            try {
+                requestJson.put("language", Locale.getDefault().getLanguage());
+                requestJson.put("session_id", globalData.getSessionId());
+            } catch (JSONException e) {
+                return;
+            }
+            DataDownloader cancelDownloader = new DataDownloader(mContext);
+            cancelDownloader.setDataDownloadListener(new CanceledRequestDownloadListener() );
+            cancelDownloader.execute(
+                    globalData.getSettingsManagerInstance().getServerPath() + "/cancel_request",
+                    requestJson.toString() );
         }
     }
 

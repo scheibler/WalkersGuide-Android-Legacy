@@ -57,7 +57,6 @@ public class MainActivity extends AbstractActivity {
         if (globalData == null) {
             globalData = ((Globals) getApplicationContext());
         }
-        System.out.println("xx session id = " + globalData.getSessionId());
         keyboardManager = globalData.getKeyboardManagerInstance();
         positionManager = globalData.getPositionManagerInstance();
         positionManager.resumeGPS();
@@ -110,6 +109,7 @@ public class MainActivity extends AbstractActivity {
     }
 
     public boolean dispatchKeyEvent(KeyEvent event) {
+        // other possible key codes: KEYCODE_MEDIA_PLAY, KEYCODE_MEDIA_PAUSE, KEYCODE_HEADSETHOOK
         int action = event.getAction();
         int keyCode = event.getKeyCode();
         switch (keyCode) {
@@ -238,12 +238,12 @@ public class MainActivity extends AbstractActivity {
         outState.putInt("tab", getActionBar().getSelectedNavigationIndex());
     }
 
-    public void onDestroy() {
+    @Override public void onDestroy() {
         super.onDestroy();
+        globalData.killSessionId();
+        globalData.stopActivityTransitionTimer();
         positionManager.stopGPS();
         sensorsManager.stopSensors();
-        System.out.println("xx session id onDestroy = " + globalData.getSessionId());
-        globalData.killSessionId();
     }
 
     public MyMessageFromStartFragmentListener getMessageFromStartFragmentListener() {

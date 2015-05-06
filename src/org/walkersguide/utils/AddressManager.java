@@ -36,14 +36,13 @@ public class AddressManager {
         if (currentLocation == null || currentLocation.distanceTo(location) > 30) {
             currentLocation = location;
             currentAddress = "";
-            String params = "/maps/api/geocode/json?"
+            String url = "https://maps.googleapis.com/maps/api/geocode/json?"
                 + "latlng=" + String.valueOf(location.getLatitude())
                 + "," + String.valueOf(location.getLongitude())
                 + "&sensor=false&language=de";
             DataDownloader downloader = new DataDownloader(mContext);
             downloader.setDataDownloadListener(new AddressDownloadListener() );
-            downloader.execute( "get",
-                    "http://maps.googleapis.com", params );
+            downloader.execute(url);
         } else if (!currentAddress.equals("")) {
             addressListener.cityUpdateSuccessful(currentCity);
             addressListener.addressUpdateSuccessful(currentAddress);

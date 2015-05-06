@@ -8,6 +8,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.walkersguide.R;
+import org.walkersguide.exceptions.DepartureListParsingException;
 import org.walkersguide.exceptions.PointListParsingException;
 import org.walkersguide.exceptions.RouteParsingException;
 import org.walkersguide.routeobjects.FootwaySegment;
@@ -668,4 +669,45 @@ public class ObjectParser {
         } catch (JSONException e) {}
         return transport;
     }
+
+    /**
+     * parses the input of the station departures query
+     * This wrapper is called from the activities and fragments and returns
+     * a list of StationPoint.Departure objects or a DepartureListParsingException
+     */
+    public static ArrayList<StationPoint.Departure> parseStationDepartureList(StationPoint station, JSONObject jsonDepartures)
+        throws DepartureListParsingException {
+        ArrayList<StationPoint.Departure> departureList = new ArrayList<StationPoint.Departure>();
+        CharSequence  text = "";
+        try {
+            if (jsonDepartures == null) {
+                text = Globals.getContext().getResources().getString(R.string.messageUnknownError);
+            } else if (! jsonDepartures.getString("error").equals("")) {
+                text = String.format(
+                        Globals.getContext().getResources().getString(R.string.messageErrorFromServer),
+                        jsonDepartures.getString("error") );
+            } else {
+                JSONArray jsonDepartureList = jsonDepartures.getJSONArray("departures");
+                for (int i=0; i<jsonDepartureList.length(); i++) {
+                    try {
+                        JSONObject departure = jsonDepartureList.getJSONObject(i);
+                        departureList.add(station.new Departure(
+                                departure.getString("nr"),
+                                departure.getString("to"),
+                                departure.getInt("remaining"),
+                                departure.getString("time") ));
+                    } catch (JSONException e) {}
+                }
+            }
+        } catch (JSONException e) {
+            text = String.format(
+                    Globals.getContext().getResources().getString(R.string.messageJSONError),
+                    e.getMessage() );
+        }
+        if (!text.equals("")) {
+            throw new DepartureListParsingException(String.valueOf(text));
+        }
+        return departureList;
+    }
+
 }

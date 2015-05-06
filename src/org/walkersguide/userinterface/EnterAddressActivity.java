@@ -181,14 +181,12 @@ public class EnterAddressActivity extends AbstractActivity {
         if (! addressString.toLowerCase().contains(editCity.getText().toString().toLowerCase())) {
             addressString = editCity.getText().toString() + " " + addressString;
         }
-        System.out.print("xx address query = " + addressString);
-        String params = "/maps/api/geocode/json?"
+        String url = "https://maps.googleapis.com/maps/api/geocode/json?"
             + "address=" + addressString + "&sensor=false"
             + "&language=" + Locale.getDefault().getLanguage();
         DataDownloader downloader = new DataDownloader(EnterAddressActivity.this);
         downloader.setDataDownloadListener(new DLListener() );
-        downloader.execute( "get",
-                "http://maps.googleapis.com", params );
+        downloader.execute(url);
     }
 
     @Override public void onPause() {
@@ -208,8 +206,6 @@ public class EnterAddressActivity extends AbstractActivity {
             addressManager.updateAddress(new Point("", location));
             positionManager.setPositionListener(null);
         }
-        public void getCurrentSpeed(double speed) {}
-        public void getCurrentBearing(int bearing) {}
     }
 
     private class MyAddressListener implements AddressManager.AddressListener {

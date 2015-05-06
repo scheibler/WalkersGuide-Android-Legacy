@@ -140,4 +140,5 @@ public class Globals extends Application {
         }
         setApplicationInBackground(false);
     }
+
 }
