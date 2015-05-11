@@ -1,5 +1,7 @@
 package org.walkersguide.utils;
 
+import java.util.Locale;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.walkersguide.R;
@@ -39,7 +41,7 @@ public class AddressManager {
             String url = "https://maps.googleapis.com/maps/api/geocode/json?"
                 + "latlng=" + String.valueOf(location.getLatitude())
                 + "," + String.valueOf(location.getLongitude())
-                + "&sensor=false&language=de";
+                + "&sensor=false&language=" + Locale.getDefault().getLanguage();
             DataDownloader downloader = new DataDownloader(mContext);
             downloader.setDataDownloadListener(new AddressDownloadListener() );
             downloader.execute(url);

@@ -1287,18 +1287,19 @@ public class StartFragment extends Fragment {
 
     private class MyAddressListener implements AddressManager.AddressListener {
         public void addressUpdateSuccessful(String address) {
-            int index = 0;
-            if (settingsManager.getValueFromTemporaryStartFragmentSettings("currentPositionActive") == 2) {
-                index = sourceRoute.getSize()-1;
+            if (settingsManager.getValueFromTemporaryStartFragmentSettings("currentPositionActive") != null) {
+                int index = 0;
+                if (settingsManager.getValueFromTemporaryStartFragmentSettings("currentPositionActive") == 2)
+                    index = sourceRoute.getSize()-1;
+                Point wayPoint = sourceRoute.getRouteObjectAtIndex(index).getPoint();
+                String objectName = String.format(
+                        getResources().getString(R.string.locationNameAddressWithAccuracy),
+                        address, wayPoint.getAccuracy() );
+                sourceRoute.replaceRouteObjectAtIndex(index, new RouteObjectWrapper(
+                            new POIPoint(address, currentLocation.getLocationObject(),
+                                getResources().getString(R.string.locationNameAddress)) ));
+                updateCurrentLocationObjectOnly();
             }
-            Point wayPoint = sourceRoute.getRouteObjectAtIndex(index).getPoint();
-            String objectName = String.format(
-                    getResources().getString(R.string.locationNameAddressWithAccuracy),
-                    address, wayPoint.getAccuracy() );
-            sourceRoute.replaceRouteObjectAtIndex(index, new RouteObjectWrapper(
-                        new POIPoint(address, currentLocation.getLocationObject(),
-                            getResources().getString(R.string.locationNameAddress)) ));
-            updateCurrentLocationObjectOnly();
         }
         public void addressUpdateFailed(String error) {}
         public void cityUpdateSuccessful(String city) {}

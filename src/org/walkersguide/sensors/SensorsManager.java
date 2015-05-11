@@ -217,7 +217,8 @@ public class SensorsManager {
 
     private class MyPositionListener implements PositionManager.PositionListener {
         private static final int smallThresholdValue = 20;
-        private static final int bigThresholdValue = 30;
+        private static final int bigThresholdValueWalk = 30;
+        private static final int bigThresholdValueDrive = 40;
         private static final int maxNumberOfMatches = 5;
         private int matchCounter;
 
@@ -251,7 +252,7 @@ public class SensorsManager {
                 if (diff < smallThresholdValue || diff > 180-smallThresholdValue) {
                     if (matchCounter > 0)
                         matchCounter -= 1;
-                } else if (diff > bigThresholdValue && diff < 180-bigThresholdValue) {
+                } else if (diff > bigThresholdValueDrive && diff < 180-bigThresholdValueDrive) {
                     if (matchCounter < maxNumberOfMatches)
                         matchCounter += 1;
                 }
@@ -259,7 +260,7 @@ public class SensorsManager {
                 if (diff < smallThresholdValue) {
                     if (matchCounter > 0)
                         matchCounter -= 1;
-                } else if (diff > bigThresholdValue) {
+                } else if (diff > bigThresholdValueWalk) {
                     if (matchCounter < maxNumberOfMatches)
                         matchCounter += 1;
                 }

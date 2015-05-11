@@ -343,6 +343,8 @@
     <string name="labelEnterCity">Stadt:</string>
     <string name="hintEnterCity">Stadt eingeben</string>
     <string name="labelChooseAddressFromListDialogHeading">Passende Adresse auswählen:</string>
+    <string name="messageEncodingError">Fehler bei der Eingabe: Bitte überprüfen Sie den Inhalt der beiden Eingabefelder.</string>
+    <string name="messageFoundNoAddress">Fehler: Die eingegebene Adresse konnte nicht gefunden werden.</string>
 
     <!-- Class: AddFavoriteActivity -->
     <string name="title_add_favorite">Eigenen Favoriten anlegen</string>

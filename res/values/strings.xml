@@ -338,6 +338,8 @@
     <string name="labelEnterCity">City:</string>
     <string name="hintEnterCity">Enter the city name</string>
     <string name="labelChooseAddressFromListDialogHeading">Choose one of these addresses:</string>
+    <string name="messageEncodingError">Input error: Please check the content of the edit fields.</string>
+    <string name="messageFoundNoAddress">Error: Can\'t find the entered address.</string>
 
     <!-- Class: AddFavoriteActivity -->
     <string name="title_add_favorite">Create personal favorite</string>

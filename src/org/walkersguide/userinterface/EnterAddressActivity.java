@@ -1,5 +1,7 @@
 package org.walkersguide.userinterface;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Locale;
 
@@ -32,6 +34,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class EnterAddressActivity extends AbstractActivity {
 
@@ -45,6 +48,7 @@ public class EnterAddressActivity extends AbstractActivity {
     private int routeRequestPosition;
     private String addressString;
     private ArrayList<POIPoint> addressPointList;
+    private Toast messageToast;
 
 	@Override protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -57,6 +61,7 @@ public class EnterAddressActivity extends AbstractActivity {
         addressManager = globalData.getAddressManagerInstance();
         positionManager = globalData.getPositionManagerInstance();
         mainLayout = (LinearLayout) findViewById(R.id.linearLayoutMain);
+        messageToast = Toast.makeText(getApplicationContext(), "", Toast.LENGTH_SHORT);
 
         Button buttonDeleteStreet = (Button) mainLayout.findViewById(R.id.buttonDeleteStreet);
         buttonDeleteStreet.setOnClickListener(new View.OnClickListener() {
@@ -181,12 +186,17 @@ public class EnterAddressActivity extends AbstractActivity {
         if (! addressString.toLowerCase().contains(editCity.getText().toString().toLowerCase())) {
             addressString = editCity.getText().toString() + " " + addressString;
         }
-        String url = "https://maps.googleapis.com/maps/api/geocode/json?"
-            + "address=" + addressString + "&sensor=false"
-            + "&language=" + Locale.getDefault().getLanguage();
-        DataDownloader downloader = new DataDownloader(EnterAddressActivity.this);
-        downloader.setDataDownloadListener(new DLListener() );
-        downloader.execute(url);
+        try {
+            String url = "https://maps.googleapis.com/maps/api/geocode/json?"
+                + "address=" + URLEncoder.encode(addressString, "UTF-8")
+                + "&sensor=false&language=" + Locale.getDefault().getLanguage();
+            DataDownloader downloader = new DataDownloader(EnterAddressActivity.this);
+            downloader.setDataDownloadListener(new DLListener() );
+            downloader.execute(url);
+        } catch(UnsupportedEncodingException e) {
+            messageToast.setText(getResources().getString(R.string.messageEncodingError));
+            messageToast.show();
+        }
     }
 
     @Override public void onPause() {
@@ -240,7 +250,10 @@ public class EnterAddressActivity extends AbstractActivity {
                         address.addAddress(address.getName());
                         addressPointList.add(address);
                     }
-                    if (addressPointList.size() == 1) {
+                    if (addressPointList.size() == 0) {
+                        messageToast.setText(getResources().getString(R.string.messageFoundNoAddress));
+                        messageToast.show();
+                    } else if (addressPointList.size() == 1) {
                         if (routeRequestPosition == -1) {
                             positionManager.changeStatus(PositionManager.Status.SIMULATION, addressPointList.get(0));
                             settingsManager.addPointToHistory(addressPointList.get(0));
