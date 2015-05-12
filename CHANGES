@@ -21,3 +21,6 @@ v0.4.0: 06.05.2015
 - Support for secure server connections via SSL
 - Improved compass accuracy
 
+v0.4.1: 12.05.2015
+- Fixed broken URL structure for address queries
+

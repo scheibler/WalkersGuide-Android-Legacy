@@ -1185,7 +1185,9 @@ public class StartFragment extends Fragment {
                 settingsManager.addToTemporaryStartFragmentSettings("currentPositionActive", 0);
             }
         }
-        System.out.println("xx flag = " + settingsManager.getValueFromTemporaryStartFragmentSettings("currentPositionActive"));
+        Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
+        buttonStartRouting.setTag(0);
+        buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
         addressManager.setAddressListener(new MyAddressListener());
         keyboardManager.setKeyboardListener(null);
         positionManager.setPositionListener(new MyPositionListener());
@@ -1369,9 +1371,11 @@ public class StartFragment extends Fragment {
         @Override public void dataDownloadedSuccessfully(JSONObject jsonObject) {
             progressHandler.removeCallbacks(progressUpdater);
             routeDownloader = null;
-            Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
-            buttonStartRouting.setTag(0);
-            buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            if (isAdded()) {
+                Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
+                buttonStartRouting.setTag(0);
+                buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            }
             try {
                 Route route = ObjectParser.parseSingleRoute(jsonObject);
                 globalData.setValue("route", route);
@@ -1389,9 +1393,11 @@ public class StartFragment extends Fragment {
         @Override public void dataDownloadFailed(String error) {
             routeDownloader = null;
             progressHandler.removeCallbacks(progressUpdater);
-            Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
-            buttonStartRouting.setTag(0);
-            buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            if (isAdded()) {
+                Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
+                buttonStartRouting.setTag(0);
+                buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            }
             Intent intent = new Intent(getActivity(), DialogActivity.class);
             intent.putExtra("message", String.format(
                         getResources().getString(R.string.messageNetworkError), error) );
@@ -1401,9 +1407,11 @@ public class StartFragment extends Fragment {
         @Override public void dataDownloadCanceled() {
             routeDownloader = null;
             progressHandler.removeCallbacks(progressUpdater);
-            Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
-            buttonStartRouting.setTag(0);
-            buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            if (isAdded()) {
+                Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
+                buttonStartRouting.setTag(0);
+                buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            }
             // stop server thread
             JSONObject requestJson = new JSONObject();
             try {
@@ -1424,9 +1432,11 @@ public class StartFragment extends Fragment {
         @Override public void dataDownloadedSuccessfully(JSONObject jsonObject) {
             routeDownloader = null;
             progressHandler.removeCallbacks(progressUpdater);
-            Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
-            buttonStartRouting.setTag(0);
-            buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            if (isAdded()) {
+                Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
+                buttonStartRouting.setTag(0);
+                buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            }
             Intent intent = new Intent(getActivity(), TransportRouteChooserActivity.class);
             intent.putExtra("transport_routes", jsonObject.toString());
             intent.putExtra("description", String.format(
@@ -1439,9 +1449,11 @@ public class StartFragment extends Fragment {
         @Override public void dataDownloadFailed(String error) {
             routeDownloader = null;
             progressHandler.removeCallbacks(progressUpdater);
-            Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
-            buttonStartRouting.setTag(0);
-            buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            if (isAdded()) {
+                Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
+                buttonStartRouting.setTag(0);
+                buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            }
             Intent intent = new Intent(getActivity(), DialogActivity.class);
             intent.putExtra("message", String.format(
                         getResources().getString(R.string.messageNetworkError), error) );
@@ -1451,9 +1463,11 @@ public class StartFragment extends Fragment {
         @Override public void dataDownloadCanceled() {
             routeDownloader = null;
             progressHandler.removeCallbacks(progressUpdater);
-            Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
-            buttonStartRouting.setTag(0);
-            buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            if (isAdded()) {
+                Button buttonStartRouting= (Button) mainLayout.findViewById(R.id.buttonStartRouting);
+                buttonStartRouting.setTag(0);
+                buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
+            }
             // stop server thread
             JSONObject requestJson = new JSONObject();
             try {
