@@ -576,7 +576,7 @@ public class RouterFragment extends Fragment {
                 } else if (nextDirection.equals(getResources().getString(R.string.directionBehindYou))) {
                     labelNextPointDescription.setText( labelNextPointDescription.getText().toString() +
                             getResources().getString(R.string.messagePointDescStationInterBehindYou));
-                } else {
+                } else if (! nextDirection.equals("")) {
                     labelNextPointDescription.setText( labelNextPointDescription.getText().toString() +
                             String.format(
                                 getResources().getString(R.string.messagePointDescStationInterTurn),
@@ -593,7 +593,7 @@ public class RouterFragment extends Fragment {
                 if (nextDirection.equals(getResources().getString(R.string.directionStraightforward))) {
                     labelNextPointDescription.setText(
                             getResources().getString(R.string.messagePointDescWayPointInterAhead));
-                } else {
+                } else if (! nextDirection.equals("")) {
                     labelNextPointDescription.setText( String.format(
                             getResources().getString(R.string.messagePointDescWayPointInterTurn), nextDirection));
                 }

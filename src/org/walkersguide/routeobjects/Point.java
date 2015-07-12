@@ -33,7 +33,7 @@ public class Point implements Comparable<Point> {
         this.type = "way_point";
         this.subType = "";
         this.nodeId = -1;
-        this.turn = -1;
+        this.turn = -361;
         this.distance = -1;
         this.bearing = -1;
         this.accuracy = -1;
@@ -49,7 +49,7 @@ public class Point implements Comparable<Point> {
         this.type = "way_point";
         this.subType = "";
         this.nodeId = -1;
-        this.turn = -1;
+        this.turn = -361;
         this.distance = -1;
         this.bearing = -1;
         this.accuracy = (int) Math.round( location.getAccuracy() );
@@ -65,7 +65,7 @@ public class Point implements Comparable<Point> {
         this.type = type;
         this.subType = subType;
         this.nodeId = -1;
-        this.turn = -1;
+        this.turn = -361;
         this.distance = -1;
         this.bearing = -1;
         this.wheelchair = -1;
@@ -80,7 +80,7 @@ public class Point implements Comparable<Point> {
         this.type = type;
         this.subType = subType;
         this.nodeId = -1;
-        this.turn = -1;
+        this.turn = -361;
         this.distance = -1;
         this.bearing = -1;
         this.wheelchair = -1;
