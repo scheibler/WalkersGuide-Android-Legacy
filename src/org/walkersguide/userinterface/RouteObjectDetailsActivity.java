@@ -21,6 +21,7 @@ import org.walkersguide.sensors.SensorsManager;
 import org.walkersguide.utils.DataDownloader;
 import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.HelperFunctions;
+import org.walkersguide.utils.KeyboardManager;
 import org.walkersguide.utils.ObjectParser;
 import org.walkersguide.utils.Route;
 import org.walkersguide.utils.SettingsManager;
@@ -34,6 +35,8 @@ import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Vibrator;
+import android.speech.tts.TextToSpeech;
+import android.text.TextUtils;
 import android.text.util.Linkify;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -73,9 +76,11 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
     private final int rbAllConnectionsId = 603;
 
     private Globals globalData;
+    private KeyboardManager keyboardManager;
     private PositionManager positionManager;
     private SensorsManager sensorsManager;
     private SettingsManager settingsManager;
+    private TextToSpeech ttsInstance;
     private Vibrator vibrator;
     private DataDownloader followWayDownloader;
     private RelativeLayout mainLayout;
@@ -100,12 +105,16 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
         if (globalData == null) {
             globalData = ((Globals) getApplicationContext());
         }
+        // keyboard manager
+        keyboardManager = globalData.getKeyboardManagerInstance();
         // position manager
         positionManager = globalData.getPositionManagerInstance();
         // sensors manager
         sensorsManager = globalData.getSensorsManagerInstance();
         // settings manager
         settingsManager = globalData.getSettingsManagerInstance();
+        // tts instance
+        ttsInstance = globalData.getTTSInstance();
         // vibrator
         vibrator = (Vibrator) this.getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
         // progress bar: vibration during route calculation
@@ -244,11 +253,6 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
                 trafficSignalLayout.setOrientation(LinearLayout.VERTICAL);
                 trafficSignalLayout.setId(trafficSignalLayoutId);
                 preferencesLayout.addView(trafficSignalLayout);
-            } else {
-                label = new TextView(this);
-                label.setLayoutParams(lp);
-                label.setText(getResources().getString(R.string.labelNoTrafficSignals));
-                preferencesLayout.addView(label);
             }
 
             // list all intersection ways
@@ -459,19 +463,27 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
                 label.setText(poi.printWheelchair());
                 preferencesLayout.addView( label);
             }
+            if (poi.hasTrafficSignalsAccessibility()) {
+                label = new TextView(this);
+                label.setLayoutParams(lp);
+                label.setText(poi.printTrafficSignalsAccessibility());
+                preferencesLayout.addView( label);
+            }
 
             if (routeObject.getStation() != null) {
                 StationPoint station = routeObject.getStation();
                 // list all lines
-                label = new TextView(this);
-                label.setLayoutParams(lp);
-                label.setText(getResources().getString(R.string.labelAvailableTransportLines));
-                preferencesLayout.addView(label);
-                for (StationPoint.Line line : station.getLines()) {
+                if (! station.getLines().isEmpty()) {
                     label = new TextView(this);
                     label.setLayoutParams(lp);
-                    label.setText( line.toString() );
+                    label.setText(getResources().getString(R.string.labelAvailableTransportLines));
                     preferencesLayout.addView(label);
+                    for (StationPoint.Line line : station.getLines()) {
+                        label = new TextView(this);
+                        label.setLayoutParams(lp);
+                        label.setText( line.toString() );
+                        preferencesLayout.addView(label);
+                    }
                 }
 
                 // departure layout
@@ -531,6 +543,9 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
                 } catch (JSONException e) {
                     return;
                 }
+                try {
+                    requestJson.put("vehicles", TextUtils.join("+", station.getVehicles()));
+                } catch (JSONException e) {}
                 DataDownloader downloader = new DataDownloader(RouteObjectDetailsActivity.this);
                 downloader.setDataDownloadListener(new DLListener() );
                 downloader.execute(
@@ -654,8 +669,6 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
 
     @Override public void onPause() {
         super.onPause();
-        positionManager.setPositionListener(null);
-        sensorsManager.setSensorsListener(null);
         if (followWayDownloader != null) {
             followWayDownloader.cancelDownloadProcess();
         }
@@ -664,6 +677,7 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
     @Override public void onResume() {
         super.onResume();
         settingsManager = globalData.getSettingsManagerInstance();
+        keyboardManager.setKeyboardListener(new MyKeyboardListener());
         sensorsManager.setSensorsListener(new MySensorsListener());
         positionManager.setPositionListener(new MyPositionListener());
     }
@@ -687,10 +701,6 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
                     currentLocation.distanceTo(destination),
                     HelperFunctions.getFormatedDirection(
                         currentLocation.bearingTo(destination) - currentCompassValue) ));
-        if (settingsManager.useGPSAsBearingSource()) {
-            labelDistanceAndBearing.setText(
-                    labelDistanceAndBearing.getText().toString() + " (GPS)");
-        }
     }
 
     public void updateIntersectionData() {
@@ -1109,6 +1119,19 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
         return true;
     }
 
+    private class MyKeyboardListener implements KeyboardManager.KeyboardListener {
+        public void longPressed(KeyEvent event) {}
+        public void headsetButtonPressed(int numberOfClicks) {
+            if (numberOfClicks == 1) {
+                TextView labelDistanceAndBearing = (TextView) findViewById(labelDistanceAndBearingId);
+                if (labelDistanceAndBearing != null) {
+                    ttsInstance.speak(labelDistanceAndBearing.getText().toString(), TextToSpeech.QUEUE_FLUSH, null);
+                    lastSpokenLocation = currentLocation;
+                }
+            }
+        }
+    }
+
     private class MyPositionListener implements PositionManager.PositionListener {
         public void locationChanged(Location location) {
             currentLocation = new Point(
@@ -1142,8 +1165,7 @@ public class RouteObjectDetailsActivity extends  AbstractActivity {
                     && location.getSpeed() < 3.0
                     && (lastSpokenLocation == null || currentLocation.distanceTo(lastSpokenLocation) > 20)) {
                 lastSpokenLocation = currentLocation;
-                messageToast.setText(labelDistanceAndBearing.getText().toString());
-                messageToast.show();
+                ttsInstance.speak(labelDistanceAndBearing.getText().toString(), TextToSpeech.QUEUE_FLUSH, null);
             }
         }
     }

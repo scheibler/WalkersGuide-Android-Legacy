@@ -3,10 +3,8 @@ package org.walkersguide.userinterface;
 import org.walkersguide.R;
 import org.walkersguide.sensors.PositionManager;
 import org.walkersguide.utils.Globals;
-import org.walkersguide.utils.KeyboardManager;
 
 import android.app.Activity;
-import android.app.Fragment;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -17,11 +15,10 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class MiscFragment extends Fragment {
+public class MiscFragment extends AbstractFragment {
 
     private Globals globalData;
     private PositionManager positionManager;
-    private KeyboardManager keyboardManager;
     private RelativeLayout mainLayout;
     private Toast messageToast;
 
@@ -31,7 +28,6 @@ public class MiscFragment extends Fragment {
             globalData = ((Globals) getActivity().getApplicationContext());
         }
         positionManager = globalData.getPositionManagerInstance();
-        keyboardManager = globalData.getKeyboardManagerInstance();
     }
 
     @Override public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -133,7 +129,6 @@ public class MiscFragment extends Fragment {
 
     @Override public void onResume() {
         super.onResume();	
-        keyboardManager.setKeyboardListener(null);
         updateUserInterface();
     }
 }

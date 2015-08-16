@@ -12,6 +12,7 @@ import org.walkersguide.utils.HelperFunctions;
 
 public class StationPoint extends POIPoint {
 
+    private ArrayList<String> vehicles;
     private ArrayList<Line> lines;
     private int stationID;
     private int foundInOSMDatabase;
@@ -21,11 +22,20 @@ public class StationPoint extends POIPoint {
 
     public StationPoint(String name, Double lat, Double lon, String subType) {
     	super(name, lat, lon, "station", subType);
+        this.vehicles = new ArrayList<String>();
         this.lines = new ArrayList<Line>();
         this.foundInOSMDatabase = -1;
         this.platformNumber = "";
         this.nextDepartures = null;
         this.queryDeparturesError = "";
+    }
+
+    public void addVehicle(String vehicle) {
+        this.vehicles.add(vehicle);
+    }
+
+    public ArrayList<String> getVehicles() {
+        return this.vehicles;
     }
 
     public void addLine(Line l) {
@@ -124,6 +134,14 @@ public class StationPoint extends POIPoint {
         JSONObject jsonObject = super.toJson();
         if (jsonObject == null)
             return null;
+        // vehicles
+        JSONArray vehiclesArray = new JSONArray();
+        for (String vehicle : this.vehicles)
+            vehiclesArray.put(vehicle);
+        try {
+            jsonObject.put("vehicles", vehiclesArray);
+        } catch (JSONException e) {}
+        // lines
         JSONArray linesArray = new JSONArray();
         for (Line line : this.lines) {
             JSONObject lineJson = line.toJson();

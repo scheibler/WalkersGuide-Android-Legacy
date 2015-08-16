@@ -139,7 +139,9 @@ public class TransportRouteChooserActivity extends AbstractActivity {
             public void onCheckedChanged(RadioGroup group, int checkedId) {
                 ExpandableListView listViewConnections = (ExpandableListView) mainLayout.findViewById(R.id.listTransportRoutes);
                 RouteListAdapter rlAdapter = (RouteListAdapter) listViewConnections.getExpandableListAdapter();
-                if (checkedId == R.id.radioButtonRecommendedConnections) {
+                rlAdapter.setArrayList(transportConnectionList);
+                if (transportConnectionList.size() > 0
+                        && checkedId == R.id.radioButtonRecommendedConnections) {
                     ArrayList<TransportConnection> subList = new ArrayList<TransportConnection>();
                     int maxCost = (int) (1.33 * transportConnectionList.get(0).getMinimalCost());
                     for (TransportConnection connection : transportConnectionList) {
@@ -148,8 +150,6 @@ public class TransportRouteChooserActivity extends AbstractActivity {
                         }
                     }
                     rlAdapter.setArrayList(subList);
-                } else {
-                    rlAdapter.setArrayList(transportConnectionList);
                 }
             }
         });

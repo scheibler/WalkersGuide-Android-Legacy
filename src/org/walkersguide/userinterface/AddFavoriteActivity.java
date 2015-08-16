@@ -121,7 +121,6 @@ public class AddFavoriteActivity extends AbstractActivity {
 
     @Override public void onPause() {
         super.onPause();
-        positionManager.setPositionListener(null);
     }
 
     @Override public void onResume() {

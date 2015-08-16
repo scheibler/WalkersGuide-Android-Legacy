@@ -24,14 +24,12 @@ import org.walkersguide.sensors.PositionManager;
 import org.walkersguide.utils.AddressManager;
 import org.walkersguide.utils.DataDownloader;
 import org.walkersguide.utils.Globals;
-import org.walkersguide.utils.KeyboardManager;
 import org.walkersguide.utils.ObjectParser;
 import org.walkersguide.utils.Route;
 import org.walkersguide.utils.SettingsManager;
 
 import android.app.Activity;
 import android.app.Dialog;
-import android.app.Fragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnKeyListener;
@@ -60,7 +58,7 @@ import android.widget.Toast;
 
 
 
-public class StartFragment extends Fragment {
+public class StartFragment extends AbstractFragment {
 
     public interface MessageFromStartFragmentListener{
         public void switchToOtherFragment(String fragmentName);
@@ -75,7 +73,6 @@ public class StartFragment extends Fragment {
     private SettingsManager settingsManager;
     private PositionManager positionManager;
     private AddressManager addressManager;
-    private KeyboardManager keyboardManager;
     private Route sourceRoute;
     private Point currentLocation, locationSinceLastFullUpdate;
     private String locationStatus;
@@ -95,7 +92,6 @@ public class StartFragment extends Fragment {
         settingsManager = globalData.getSettingsManagerInstance();
         positionManager = globalData.getPositionManagerInstance();
         addressManager = globalData.getAddressManagerInstance();
-        keyboardManager = globalData.getKeyboardManagerInstance();
         vibrator = (Vibrator) getActivity().getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
         progressHandler = new Handler();
         progressUpdater = new ProgressUpdater();
@@ -197,7 +193,6 @@ public class StartFragment extends Fragment {
         // check webserver interface version
         if (webserverInterfaceVersion > settingsManager.getInterfaceVersion()) {
             showOldWebserverInterfaceVersionDialog();
-            return;
         }
         // check if source route has empty objects and get the number of public transport segments
         int index = 0;
@@ -993,7 +988,7 @@ public class StartFragment extends Fragment {
         // route factor
         label = new TextView(getActivity());
         label.setLayoutParams(lpMarginTop);
-        label.setText(getResources().getString(R.string.labelSettingsActivityRouteFactor));
+        label.setText(getResources().getString(R.string.labelRouteDialogRouteFactor));
         dialogLayout.addView(label);
         Spinner spinnerRouteFactor = new Spinner(getActivity());
         spinnerRouteFactor.setId(0);
@@ -1159,7 +1154,6 @@ public class StartFragment extends Fragment {
 
     @Override public void onPause() {
         super.onPause();
-        positionManager.setPositionListener(null);
         progressHandler.removeCallbacks(progressUpdater);
         settingsManager.setRouteRequest(sourceRoute);
         if (routeDownloader != null) {
@@ -1169,6 +1163,7 @@ public class StartFragment extends Fragment {
 
     @Override public void onResume() {
         super.onResume();	
+        System.out.println("xxx start frag onResume");
         settingsManager = globalData.getSettingsManagerInstance();
         // check if the current position is still active
         sourceRoute = settingsManager.getRouteRequest();
@@ -1189,7 +1184,6 @@ public class StartFragment extends Fragment {
         buttonStartRouting.setTag(0);
         buttonStartRouting.setText(getResources().getString(R.string.buttonStartRouting));
         addressManager.setAddressListener(new MyAddressListener());
-        keyboardManager.setKeyboardListener(null);
         positionManager.setPositionListener(new MyPositionListener());
         updateRouteRequest();
     }

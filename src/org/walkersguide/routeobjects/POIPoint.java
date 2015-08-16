@@ -5,8 +5,12 @@ import java.util.ArrayList;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.walkersguide.R;
+import org.walkersguide.utils.Globals;
+import org.walkersguide.utils.HelperFunctions;
 
 import android.location.Location;
+import android.text.TextUtils;
 
 
 public class POIPoint extends Point {
@@ -19,7 +23,8 @@ public class POIPoint extends Point {
     private POIPoint outerBuilding;
     private ArrayList<POIPoint> entranceList;
     private String entranceType;
-    private int trafficSignalsAccessibility;
+    private int trafficSignalsSound;
+    private int trafficSignalsVibration;
 
     public POIPoint(String name, Double lat, Double lon, String subType) {
     	super(name, lat, lon, "poi", subType);
@@ -31,7 +36,8 @@ public class POIPoint extends Point {
         this.entranceList = new ArrayList<POIPoint>();
         this.outerBuilding = null;
         this.entranceType = "";
-        this.trafficSignalsAccessibility = -1;
+        this.trafficSignalsSound = -1;
+        this.trafficSignalsVibration = -1;
     }
 
     public POIPoint(String name, Location location, String subType) {
@@ -44,7 +50,8 @@ public class POIPoint extends Point {
         this.entranceList = new ArrayList<POIPoint>();
         this.outerBuilding = null;
         this.entranceType = "";
-        this.trafficSignalsAccessibility = -1;
+        this.trafficSignalsSound = -1;
+        this.trafficSignalsVibration = -1;
     }
 
     public POIPoint(String name, Double lat, Double lon, String type, String subType) {
@@ -57,7 +64,8 @@ public class POIPoint extends Point {
         this.entranceList = new ArrayList<POIPoint>();
         this.outerBuilding = null;
         this.entranceType = "";
-        this.trafficSignalsAccessibility = -1;
+        this.trafficSignalsSound = -1;
+        this.trafficSignalsVibration = -1;
     }
 
     public POIPoint(String name, Location location, String type, String subType) {
@@ -70,7 +78,8 @@ public class POIPoint extends Point {
         this.entranceList = new ArrayList<POIPoint>();
         this.outerBuilding = null;
         this.entranceType = "";
-        this.trafficSignalsAccessibility = -1;
+        this.trafficSignalsSound = -1;
+        this.trafficSignalsVibration = -1;
     }
 
     public void addAddress(String addr) {
@@ -138,12 +147,80 @@ public class POIPoint extends Point {
         return this.entranceType;
     }
 
-    public void addTrafficSignalsAccessibility(int value) {
-        this.trafficSignalsAccessibility = value;
+    public void addTrafficSignalsSound(int value) {
+        this.trafficSignalsSound = value;
     }
 
-    public int getTrafficSignalsAccessibility() {
-        return this.trafficSignalsAccessibility;
+    public void addTrafficSignalsVibration(int value) {
+        this.trafficSignalsVibration = value;
+    }
+
+    public boolean hasTrafficSignalsAccessibility() {
+        if (this.trafficSignalsSound > -1 || this.trafficSignalsVibration > -1)
+            return true;
+        return false;
+    }
+
+    public String printTrafficSignalsAccessibility() {
+        ArrayList<String> trafficSignalProperties = new ArrayList<String>();
+        if (this.trafficSignalsSound == 0) {
+            trafficSignalProperties.add(String.format(
+                    Globals.getContext().getResources().getString(R.string.roPointTrafficSignalsSound),
+                    Globals.getContext().getResources().getString(R.string.dialogNo)));
+        } else if (this.trafficSignalsSound == 1) {
+            trafficSignalProperties.add(String.format(
+                    Globals.getContext().getResources().getString(R.string.roPointTrafficSignalsSound),
+                    Globals.getContext().getResources().getString(R.string.dialogYes)));
+        }
+        if (this.trafficSignalsVibration == 0) {
+            trafficSignalProperties.add(String.format(
+                    Globals.getContext().getResources().getString(R.string.roPointTrafficSignalsVibration),
+                    Globals.getContext().getResources().getString(R.string.dialogNo)));
+        } else if (this.trafficSignalsVibration == 1) {
+            trafficSignalProperties.add(String.format(
+                    Globals.getContext().getResources().getString(R.string.roPointTrafficSignalsVibration),
+                    Globals.getContext().getResources().getString(R.string.dialogYes)));
+        }
+        return TextUtils.join(", ", trafficSignalProperties);
+    }
+
+    /**
+     * routing instruction for this poi point
+     * routeIndex:
+     *      0: first route object
+     *      1: intermediate route object
+     *      2:  last route object
+     */
+    public String getRoutingPointInstruction(int routeIndex) {
+        if (routeIndex == 0) {
+            return String.format(
+                    Globals.getContext().getResources().getString(R.string.messagePointDescStationStart),
+                    this.toString());
+        } else if (routeIndex == 1) {
+            String nextDirection = HelperFunctions.getFormatedDirection(super.getTurn());
+            if (nextDirection.equals(Globals.getContext().getResources().getString(R.string.directionStraightforward))) {
+                return String.format(
+                        Globals.getContext().getResources().getString(R.string.messagePointDescStationInterAhead),
+                        this.toString());
+            } else if (nextDirection.equals(Globals.getContext().getResources().getString(R.string.directionBehindYou))) {
+                return String.format(
+                        Globals.getContext().getResources().getString(R.string.messagePointDescStationInterBehind),
+                        this.toString());
+            } else if (! nextDirection.equals("")) {
+                return String.format(
+                        Globals.getContext().getResources().getString(R.string.messagePointDescStationInterTurn),
+                        this.toString(), nextDirection);
+            } else {
+                return String.format(
+                        Globals.getContext().getResources().getString(R.string.messagePointDescStationInterNoTurnValue),
+                        this.toString());
+            }
+        } else if (routeIndex == 2) {
+            return String.format(
+                    Globals.getContext().getResources().getString(R.string.messagePointDescStationDestination),
+                    this.toString());
+        }
+        return "";
     }
 
     public JSONObject toJson() {
@@ -196,9 +273,14 @@ public class POIPoint extends Point {
                 jsonObject.put("opening_hours", this.openingHours);
             } catch (JSONException e) {}
         }
-        if (this.trafficSignalsAccessibility > -1) {
+        if (this.trafficSignalsSound > -1) {
             try {
-                jsonObject.put("traffic_signals_accessibility", this.trafficSignalsAccessibility);
+                jsonObject.put("traffic_signals_sound", this.trafficSignalsSound);
+            } catch (JSONException e) {}
+        }
+        if (this.trafficSignalsVibration > -1) {
+            try {
+                jsonObject.put("traffic_signals_vibration", this.trafficSignalsVibration);
             } catch (JSONException e) {}
         }
         return jsonObject;

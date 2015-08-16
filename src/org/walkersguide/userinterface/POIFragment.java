@@ -23,7 +23,6 @@ import org.walkersguide.utils.SettingsManager;
 
 import android.app.Activity;
 import android.app.Dialog;
-import android.app.Fragment;
 import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
@@ -31,6 +30,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.os.Vibrator;
+import android.speech.tts.TextToSpeech;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -50,7 +50,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class POIFragment extends Fragment {
+public class POIFragment extends AbstractFragment {
 
     public interface MessageFromPOIFragmentListener{
         public void switchToOtherFragment(String fragmentName);
@@ -60,12 +60,13 @@ public class POIFragment extends Fragment {
     private static final int OBJECTDETAILS = 1;
     private static final int CHOOSEPOICATEGORIES = 2;
     private Globals globalData;
-    private POIManager poiManager;
-    private PositionManager positionManager;
-    private SensorsManager sensorsManager;
     private SettingsManager settingsManager;
     private AddressManager addressManager;
     private KeyboardManager keyboardManager;
+    private POIManager poiManager;
+    private PositionManager positionManager;
+    private SensorsManager sensorsManager;
+    private TextToSpeech ttsInstance;
     private Vibrator vibrator;
     private LinearLayout mainLayout, radiusLayout, searchLayout;
     private Dialog dialog;
@@ -92,6 +93,7 @@ public class POIFragment extends Fragment {
         sensorsManager = globalData.getSensorsManagerInstance();
         addressManager = globalData.getAddressManagerInstance();
         keyboardManager = globalData.getKeyboardManagerInstance();
+        ttsInstance = globalData.getTTSInstance();
         vibrator = (Vibrator) getActivity().getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
         gpsStatusHandler = new Handler();
         gpsStatusUpdater = new GPSStatusUpdater();
@@ -422,9 +424,6 @@ public class POIFragment extends Fragment {
         settingsManager.addToTemporaryPOIFragmentSettings("routeRequestPosition", null);
         gpsStatusHandler.removeCallbacks(gpsStatusUpdater);
         progressHandler.removeCallbacks(progressUpdater);
-        positionManager.setPositionListener(null);
-        sensorsManager.setSensorsListener(null);
-        poiManager.cancel();
     }
 
     @Override public void onResume() {
@@ -937,6 +936,7 @@ public class POIFragment extends Fragment {
                     return;
             }
         }
+        public void headsetButtonPressed(int numberOfClicks) {}
     }
 
     private class MyPOIListener implements POIManager.POIListener {
@@ -972,8 +972,12 @@ public class POIFragment extends Fragment {
                 currentAddress = address;
                 String addressLabel = String.format(
                         getResources().getString(R.string.messageCurrentAddress), address);
-                messageToast.setText(addressLabel);
-                messageToast.show();
+                if (globalData.applicationInBackground()) {
+                    ttsInstance.speak(addressLabel, TextToSpeech.QUEUE_FLUSH, null);
+                } else {
+                    messageToast.setText(addressLabel);
+                    messageToast.show();
+                }
                 updateLabelStatus();
             }
         }
@@ -1039,13 +1043,13 @@ public class POIFragment extends Fragment {
                     queryPOIListUpdate();
                     if ( ((String) spinnerAdditionalOptions.getSelectedItem()).equals(getResources().getString(R.string.arrayAAAddress)) )
                         queryAddressUpdate();
-                    messageToast.setText("Aktualisiere");
+                    messageToast.setText(getResources().getString(R.string.messageRefreshPOIList));
                     messageToast.show();
                 } else if ((Integer) buttonRefresh.getTag() == 1) {
                     buttonRefresh.setTag(0);
                     poiManager.cancel();
                     updateUserInterface();
-                    messageToast.setText("Abgebrochen");
+                    messageToast.setText(getResources().getString(R.string.messageRefreshPOIListCanceled));
                     messageToast.show();
                 }
             }

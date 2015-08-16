@@ -38,21 +38,23 @@ public class SettingsActivity extends  AbstractActivity {
         setContentView(R.layout.activity_settings);
         mainLayout = (RelativeLayout) findViewById(R.id.linearLayoutMain);
 
-        // route factor
-        Spinner spinnerRouteFactor = (Spinner) mainLayout.findViewById(R.id.spinnerRouteFactor);
-        ArrayAdapter<Double> adapter = new ArrayAdapter<Double>(this,
-                android.R.layout.simple_spinner_item, settingsManager.getRouteFactorArray());
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerRouteFactor.setAdapter(adapter);
-        // select choosen route factor
-        int index = adapter.getPosition(settingsManager.getRouteFactor());
-        if (index == -1) {
-            index = adapter.getPosition(settingsManager.getDefaultRouteFactor());
-            if (index == -1) {
-                index = 0;
-            }
+        Button buttonStayActive = (Button) mainLayout.findViewById(R.id.buttonStayActive);
+        if (settingsManager.getStayActiveInBackground()) {
+            buttonStayActive.setTag(1);
+        } else {
+            buttonStayActive.setTag(0);
         }
-        spinnerRouteFactor.setSelection(index);
+        buttonStayActive.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                Button buttonStayActive = (Button) mainLayout.findViewById(R.id.buttonStayActive);
+                if ((Integer) buttonStayActive.getTag() == 0) {
+                    buttonStayActive.setTag(1);
+                } else {
+                    buttonStayActive.setTag(0);
+                }
+                updateUserInterface();
+            }
+        });
 
         Button buttonShakeNextPoint = (Button) mainLayout.findViewById(R.id.buttonShakeNextPoint);
         if (settingsManager.getShakeForNextRoutePoint()) {
@@ -267,11 +269,13 @@ public class SettingsActivity extends  AbstractActivity {
             return false;
         }
 
-        // route factor
-        Spinner spinnerRouteFactor = (Spinner) mainLayout.findViewById(R.id.spinnerRouteFactor);
-        double routeFactor = (Double) spinnerRouteFactor.getSelectedItem();
-
-        // store settings
+        // other settings
+        Button buttonStayActive = (Button) mainLayout.findViewById(R.id.buttonStayActive);
+        if ((Integer) buttonStayActive.getTag() == 0) {
+            settingsManager.setStayActiveInBackground(false);
+        } else {
+            settingsManager.setStayActiveInBackground(true);
+        }
         Button buttonShakeNextPoint = (Button) mainLayout.findViewById(R.id.buttonShakeNextPoint);
         if ((Integer) buttonShakeNextPoint.getTag() == 0) {
             settingsManager.setShakeForNextRoutePoint(false);
@@ -282,11 +286,16 @@ public class SettingsActivity extends  AbstractActivity {
         settingsManager.setShakeIntensity(spinnerShakeIntensity.getSelectedItemPosition());
         settingsManager.setHostURL(url);
         settingsManager.setHostPort(port);
-        settingsManager.setRouteFactor(routeFactor);
         return true;
     }
 
     public void updateUserInterface() {
+        Button buttonStayActive = (Button) mainLayout.findViewById(R.id.buttonStayActive);
+        if ((Integer) buttonStayActive.getTag() == 0) {
+            buttonStayActive.setText(getResources().getString(R.string.buttonStayActiveNo));
+        } else {
+            buttonStayActive.setText(getResources().getString(R.string.buttonStayActiveYes));
+        }
         Button buttonShakeNextPoint = (Button) mainLayout.findViewById(R.id.buttonShakeNextPoint);
         if ((Integer) buttonShakeNextPoint.getTag() == 0) {
             buttonShakeNextPoint.setText(getResources().getString(R.string.buttonShakeNextPointNo));

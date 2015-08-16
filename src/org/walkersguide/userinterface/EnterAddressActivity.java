@@ -199,11 +199,6 @@ public class EnterAddressActivity extends AbstractActivity {
         }
     }
 
-    @Override public void onPause() {
-        super.onPause();
-        positionManager.setPositionListener(null);
-    }
-
     @Override public void onResume() {
         super.onResume();
         addressManager.setAddressListener(new MyAddressListener());

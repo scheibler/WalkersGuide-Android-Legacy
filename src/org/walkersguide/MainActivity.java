@@ -10,6 +10,7 @@ import org.walkersguide.userinterface.RouterFragment;
 import org.walkersguide.userinterface.StartFragment;
 import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.KeyboardManager;
+import org.walkersguide.utils.RemoteControlReceiver;
 
 import android.app.ActionBar;
 import android.app.ActionBar.Tab;
@@ -18,6 +19,7 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.Fragment;
 import android.app.FragmentTransaction;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.media.AudioManager;
@@ -53,7 +55,6 @@ public class MainActivity extends AbstractActivity {
         messageToast = Toast.makeText(getApplicationContext(), "", Toast.LENGTH_SHORT);
         backButtonClicked = false;
         wasLongPressed = false;
-        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         if (globalData == null) {
             globalData = ((Globals) getApplicationContext());
         }
@@ -62,6 +63,9 @@ public class MainActivity extends AbstractActivity {
         positionManager.resumeGPS();
         sensorsManager = globalData.getSensorsManagerInstance();
         sensorsManager.resumeSensors();
+        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        audioManager.registerMediaButtonEventReceiver(
+                new ComponentName(getPackageName(), RemoteControlReceiver.class.getName()));
 
         // log to sd card
         // Thread.setDefaultUncaughtExceptionHandler(new CustomExceptionHandler(
@@ -108,8 +112,9 @@ public class MainActivity extends AbstractActivity {
         }
     }
 
-    public boolean dispatchKeyEvent(KeyEvent event) {
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
         // other possible key codes: KEYCODE_MEDIA_PLAY, KEYCODE_MEDIA_PAUSE, KEYCODE_HEADSETHOOK
+        //System.out.println("xxx key = " + event.toString());
         int action = event.getAction();
         int keyCode = event.getKeyCode();
         switch (keyCode) {
@@ -117,7 +122,7 @@ public class MainActivity extends AbstractActivity {
                 if (action == KeyEvent.ACTION_DOWN) {
                     if (event.isLongPress()) {
                         wasLongPressed = true;
-                        keyboardManager.sendKey(event);
+                        keyboardManager.longPressed(event);
                     }
                 }
                 if (action == KeyEvent.ACTION_UP) {
@@ -134,7 +139,7 @@ public class MainActivity extends AbstractActivity {
                 if (action == KeyEvent.ACTION_DOWN) {
                     if (event.isLongPress()) {
                         wasLongPressed = true;
-                        keyboardManager.sendKey(event);
+                        keyboardManager.longPressed(event);
                     }
                 }
                 if (action == KeyEvent.ACTION_UP) {
@@ -147,48 +152,15 @@ public class MainActivity extends AbstractActivity {
                 }
                 return true;
 
-            case KeyEvent.KEYCODE_FOCUS:
-                return true;
-
-            case KeyEvent.KEYCODE_CAMERA:
-                if (action == KeyEvent.ACTION_DOWN) {
-                    if (event.isLongPress()) {
-                        wasLongPressed = true;
-                        // select previous tab
-                        int newTabIndex = getActionBar().getSelectedNavigationIndex() - 1;
-                        if (newTabIndex < 0)
-                            newTabIndex = getActionBar().getNavigationItemCount() - 1;
-                        messageToast.setText( String.format(
-                                getResources().getString(R.string.previousTabMessage),
-                                getActionBar().getTabAt(newTabIndex).getText() ));
-                        messageToast.show();
-                        getActionBar().setSelectedNavigationItem(newTabIndex);
-                    }
-                }
-                if (action == KeyEvent.ACTION_UP) {
-                    if (wasLongPressed) {
-                        wasLongPressed = false;
-                    } else {
-                        // select next tab
-                        int newTabIndex = getActionBar().getSelectedNavigationIndex() + 1;
-                        if (newTabIndex >= getActionBar().getNavigationItemCount())
-                            newTabIndex = 0;
-                        messageToast.setText( String.format(
-                                getResources().getString(R.string.nextTabMessage),
-                                getActionBar().getTabAt(newTabIndex).getText() ));
-                        messageToast.show();
-                        getActionBar().setSelectedNavigationItem(newTabIndex);
-                    }
-                }
-                return true;
-
             case KeyEvent.KEYCODE_BACK:
                 if (action == KeyEvent.ACTION_UP && !backButtonClicked) {
                     backButtonClicked = true;
                     showExitDialog();
                     return true;
                 }
+
             default:
+                System.out.println("xxx default");
                 return super.dispatchKeyEvent(event);
         }
     }
@@ -240,10 +212,18 @@ public class MainActivity extends AbstractActivity {
 
     @Override public void onDestroy() {
         super.onDestroy();
+        // null all listeners
+        globalData.getAddressManagerInstance().setAddressListener(null);
+        globalData.getKeyboardManagerInstance().setKeyboardListener(null);
+        globalData.getPOIManagerInstance().setPOIListener(null);
+        globalData.getPositionManagerInstance().setPositionListener(null);
+        positionManager.stopGPS();
+        globalData.getSensorsManagerInstance().setSensorsListener(null);
+        sensorsManager.stopSensors();
         globalData.killSessionId();
         globalData.stopActivityTransitionTimer();
-        positionManager.stopGPS();
-        sensorsManager.stopSensors();
+        audioManager.unregisterMediaButtonEventReceiver(
+                new ComponentName(getPackageName(), RemoteControlReceiver.class.getName()));
     }
 
     public MyMessageFromStartFragmentListener getMessageFromStartFragmentListener() {

@@ -35,6 +35,22 @@ public class POIPreset implements Comparable<POIPreset> {
         this.poiListStatus = UpdateStatus.UNCHANGED;
         this.downloadedNewData = false;
         this.poiList = new ArrayList<Point>();
+
+        // rename old poi tag "transport"
+        if (this.tags.matches("transport")
+                || this.tags.matches(".*\\+transport")
+                || this.tags.matches("transport\\+.*")
+                || this.tags.matches(".*\\+transport\\+.*")) {
+            this.tags = this.tags.replace("transport", "transport_bus_tram+transport_train_lightrail_subway+transport_airport_ferry_aerialway+transport_taxi");
+        }
+
+        // rename old poi tag "traffic_signals"
+        if (this.tags.matches("traffic_signals")
+                || this.tags.matches(".*\\+traffic_signals")
+                || this.tags.matches("traffic_signals\\+.*")
+                || this.tags.matches(".*\\+traffic_signals\\+.*")) {
+            this.tags = this.tags.replace("traffic_signals", "pedestrian_crossings");
+        }
     }
 
     public int getId() {

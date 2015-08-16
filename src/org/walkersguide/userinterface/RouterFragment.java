@@ -2,7 +2,6 @@ package org.walkersguide.userinterface;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 
 import org.walkersguide.MainActivity;
 import org.walkersguide.R;
@@ -24,14 +23,13 @@ import org.walkersguide.utils.SettingsManager;
 
 import android.app.Activity;
 import android.app.Dialog;
-import android.app.Fragment;
 import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Vibrator;
-import android.text.TextUtils;
+import android.speech.tts.TextToSpeech;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -51,7 +49,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
-public class RouterFragment extends Fragment {
+public class RouterFragment extends AbstractFragment {
 
     public interface MessageFromRouterFragmentListener{
         public void switchToOtherFragment(String fragmentName);
@@ -74,6 +72,7 @@ public class RouterFragment extends Fragment {
     private SensorsManager sensorsManager;
     private AddressManager addressManager;
     private KeyboardManager keyboardManager;
+    private TextToSpeech ttsInstance;
     private Vibrator vibrator;
     private AccessibilityDelegate defaultAccessibilityDelegate;
     private UIElement focusedElement;
@@ -102,6 +101,7 @@ public class RouterFragment extends Fragment {
         sensorsManager = globalData.getSensorsManagerInstance();
         addressManager = globalData.getAddressManagerInstance();
         keyboardManager = globalData.getKeyboardManagerInstance();
+        ttsInstance = globalData.getTTSInstance();
         vibrator = (Vibrator) getActivity().getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
         processedPOIList = new ArrayList<Point>();
         mHandler = new Handler();
@@ -447,296 +447,58 @@ public class RouterFragment extends Fragment {
         if (route == null || currentLocation == null) {
             return;
         }
-        TextView labelNextSegmentDescription = (TextView) nextPointLayout.findViewById(R.id.labelNextSegmentDescription);
-        labelNextSegmentDescription.setText("");
+
         TextView labelNextPointDescription = (TextView) nextPointLayout.findViewById(R.id.labelNextPointDescription);
-        labelNextPointDescription.setText("");
+        labelNextPointDescription.setText(route.getRoutingPointInstruction());
+
+        TextView labelNextSegmentDescription = (TextView) nextPointLayout.findViewById(R.id.labelNextSegmentDescription);
+        labelNextSegmentDescription.setText(route.getRoutingSegmentInstruction());
+        if (labelNextSegmentDescription.getText().toString().equals(""))
+            labelNextSegmentDescription.setVisibility(View.GONE);
+        else
+            labelNextSegmentDescription.setVisibility(View.VISIBLE);
+
         TextView labelDetailInformation = (TextView) nextPointLayout.findViewById(R.id.labelDetailInformation);
         labelDetailInformation.setText("");
-        TextView labelDistance= (TextView) nextPointLayout.findViewById(R.id.labelDistance);
-        labelDistance.setText("");
-        TextView labelCurrentPoint= (TextView) nextPointLayout.findViewById(R.id.labelCurrentPoint);
-        labelCurrentPoint.setText("");
-
-        RouteObjectWrapper nextPoint = route.getNextPoint();
-        RouteObjectWrapper prevPoint = route.getPreviousPoint();
-        RouteObjectWrapper segment = route.getNextSegment();
-        int currentBearing = currentLocation.bearingTo(nextPoint.getPoint());
-        int currentDistance = currentLocation.distanceTo(nextPoint.getPoint());
-        if (oldBearingValue == -1)
-            oldBearingValue = currentBearing;
-
-        String pointDescription = "";
-        IntersectionPoint.IntersectionWay prevWay, nextWay = null;
-        if (nextPoint.getIntersection() != null) {
-            if (nextPoint.getIntersection().getTurn() < 0) {
-                if (route.getNextPointNumber() == 1) {
-                    pointDescription = String.format(
-                                getResources().getString(R.string.messagePointDescInterStart),
-                                nextPoint.getIntersection().getName());
-                } else if (route.getNextPointNumber() == route.getNumberOfPoints()) {
-                    pointDescription = String.format(
-                                getResources().getString(R.string.messagePointDescInterDestination),
-                                nextPoint.getIntersection().getName());
-                }
-            } else {
-                int absValue = 0;
-                int minAbsValue = 360;
-                int bearingOfPrevSegment, bearingOfNextSegment;
-                if (segment.getFootwaySegment() != null) {
-                    bearingOfPrevSegment = segment.getFootwaySegment().getBearing() - 180;
-                    bearingOfNextSegment = segment.getFootwaySegment().getBearing() + nextPoint.getPoint().getTurn();
-                } else {
-                    bearingOfPrevSegment = currentBearing - 180;
-                    bearingOfNextSegment = currentBearing + nextPoint.getPoint().getTurn();
-                }
-                if (bearingOfPrevSegment < 0)
-                    bearingOfPrevSegment += 360;
-                if (bearingOfNextSegment >= 360)
-                    bearingOfNextSegment -= 360;
-                // find closest intersection way and calculate relative bearings
-                for (IntersectionPoint.IntersectionWay way : nextPoint.getIntersection().getSubPoints()) {
-                    way.setRelativeBearing(currentCompassValue);
-                    absValue = Math.abs(bearingOfNextSegment - way.getIntersectionBearing());
-                    if (absValue > 180)
-                        absValue = 360 - absValue;
-                    if (absValue < minAbsValue) {
-                        nextWay = way;
-                        minAbsValue = absValue;
-                    }
-                }
-                Collections.sort(nextPoint.getIntersection().getSubPoints());
-                ArrayList<String> streetList = new ArrayList<String>();
-                for (IntersectionPoint.IntersectionWay way : nextPoint.getIntersection().getSubPoints()) {
-                    if (way == nextWay) {
-                        streetList.add(
-                                HelperFunctions.getFormatedDirection(way.getRelativeBearing())
-                                + ": *" + way.getName());
-                    } else {
-                        streetList.add(
-                                HelperFunctions.getFormatedDirection(way.getRelativeBearing())
-                                + ": " + way.getName() );
-                    }
-                }
-                if (nextPoint.getIntersection().getTrafficSignalList().size() > 0) {
-                    labelDetailInformation.setText( String.format(
+        if (route.getNextPoint().getIntersection() != null) {
+            IntersectionPoint intersection = route.getNextPoint().getIntersection();
+            if (route.getNextSegment().getFootwaySegment() != null) {
+                FootwaySegment segment = route.getNextSegment().getFootwaySegment();
+                if (intersection.getTrafficSignalList().size() > 0) {
+                    labelDetailInformation.setText(
+                            String.format(
                                 getResources().getString(R.string.messageDynamicIntersectionDescriptionWithTS),
-                                TextUtils.join(";", streetList),
-                                nextPoint.getIntersection().getTrafficSignalList().size()) );
+                                intersection.getIntersectionStructure(
+                                        currentCompassValue, segment.getBearing(), false),
+                                intersection.getTrafficSignalList().size()) );
                 } else {
-                    labelDetailInformation.setText( String.format(
+                    labelDetailInformation.setText(
+                            String.format(
                                 getResources().getString(R.string.messageDynamicIntersectionDescription),
-                                TextUtils.join(";", streetList)) );
-                }
-                int turn = nextPoint.getIntersection().getTurn();
-                if ((turn > 22) && (turn < 338)) {
-                    if (nextWay != null) {
-                        pointDescription = String.format(
-                                getResources().getString(R.string.messagePointDescInterInterWithStreet),
-                                nextPoint.getIntersection().getName(),
-                                HelperFunctions.getFormatedDirection(turn),
-                                nextWay.getName());
-                    } else {
-                        pointDescription = String.format(
-                                getResources().getString(R.string.messagePointDescInterInter),
-                                nextPoint.getIntersection().getName(),
-                                HelperFunctions.getFormatedDirection(turn));
-                    }
-                } else {
-                    if (nextWay != null) {
-                        pointDescription = String.format(
-                                getResources().getString(R.string.messagePointDescInterInterStraightWithName),
-                                nextPoint.getIntersection().getName(), nextWay.getName());
-                    } else {
-                        pointDescription = String.format(
-                                getResources().getString(R.string.messagePointDescInterInterStraight),
-                                nextPoint.getIntersection().getName());
-                    }
-                }
-            }
-            labelNextPointDescription.setText(pointDescription);
-        } else if (nextPoint.getPOI() != null
-                || nextPoint.getStation() != null) {
-            if (route.getNextPointNumber() == 1) {
-                labelNextPointDescription.setText( String.format(
-                            getResources().getString(R.string.messagePointDescStationStart),
-                            nextPoint.toString() ));
-            } else if (route.getNextPointNumber() == route.getNumberOfPoints()) {
-                labelNextPointDescription.setText( String.format(
-                            getResources().getString(R.string.messagePointDescStationDestination),
-                            nextPoint.toString() ));
-            } else {
-                labelNextPointDescription.setText( String.format(
-                            getResources().getString(R.string.messagePointDescStationInter),
-                            nextPoint.toString() ));
-                String nextDirection = HelperFunctions.getFormatedDirection(nextPoint.getPoint().getTurn());
-                if (nextDirection.equals(getResources().getString(R.string.directionStraightforward))) {
-                    labelNextPointDescription.setText( labelNextPointDescription.getText().toString() +
-                            getResources().getString(R.string.messagePointDescStationInterStraight));
-                } else if (nextDirection.equals(getResources().getString(R.string.directionBehindYou))) {
-                    labelNextPointDescription.setText( labelNextPointDescription.getText().toString() +
-                            getResources().getString(R.string.messagePointDescStationInterBehindYou));
-                } else if (! nextDirection.equals("")) {
-                    labelNextPointDescription.setText( labelNextPointDescription.getText().toString() +
-                            String.format(
-                                getResources().getString(R.string.messagePointDescStationInterTurn),
-                                nextDirection));
-                }
-            }
-        } else {
-            if (route.getNextPointNumber() == 1) {
-                labelNextPointDescription.setText(getResources().getString(R.string.messagePointDescWayPointStart));
-            } else if (route.getNextPointNumber() == route.getNumberOfPoints()) {
-                labelNextPointDescription.setText(getResources().getString(R.string.messagePointDescWayPointDestination));
-            } else {
-                String nextDirection = HelperFunctions.getFormatedDirection(nextPoint.getPoint().getTurn());
-                if (nextDirection.equals(getResources().getString(R.string.directionStraightforward))) {
-                    labelNextPointDescription.setText(
-                            getResources().getString(R.string.messagePointDescWayPointInterAhead));
-                } else if (! nextDirection.equals("")) {
-                    labelNextPointDescription.setText( String.format(
-                            getResources().getString(R.string.messagePointDescWayPointInterTurn), nextDirection));
+                                intersection.getIntersectionStructure(
+                                        currentCompassValue, segment.getBearing(), false)) );
                 }
             }
         }
+        if (labelDetailInformation.getText().toString().equals(""))
+            labelDetailInformation.setVisibility(View.GONE);
+        else
+            labelDetailInformation.setVisibility(View.VISIBLE);
 
-        String segmentDescription = "";
-        if (segment.getFootwaySegment() != null) {
-            segmentDescription = String.format(
-                    getResources().getString(R.string.messageSegmentDescFootway),
-                    segment.getFootwaySegment().getDistance(),
-                    segment.getFootwaySegment().getName(),
-                    segment.getFootwaySegment().getSubType() );
-            if (! segment.getFootwaySegment().getSurface().equals(""))
-                segmentDescription += String.format(
-                        getResources().getString(R.string.roWaySurface),
-                        segment.getFootwaySegment().getSurface() );
-            if (segment.getFootwaySegment().getSidewalk() >= 0)
-                segmentDescription += ", " + segment.getFootwaySegment().printSidewalk();
-            labelNextSegmentDescription.setText(segmentDescription);
-        } else if (segment.getTransportSegment() != null) {
-            labelNextSegmentDescription.setText( String.format(
-                    getResources().getString(R.string.messageSegmentDescTransport),
-                    segment.getTransportSegment().getName(),
-                    segment.getTransportSegment().getDepartureTime(),
-                    segment.getTransportSegment().getDuration(),
-                    segment.getTransportSegment().getNumberOfStops() ));
-        }
-
-        // tell the user, when the next route point is reached
-        // either by bearing or distance
-        int threshold_angle = 75;
-        int calculated_angle = 0;
-        if (segment.getFootwaySegment() != null) {
-            calculated_angle = Math.min(Math.abs(segment.getFootwaySegment().getBearing() - currentBearing),
-                    (360 - Math.abs(segment.getFootwaySegment().getBearing() - currentBearing)) );
-            if ((currentDistance < 25) && (pointFoundDistance == false)) {
-                pointFoundDistance = true;
-                if (nextPoint.getIntersection() != null) {
-                    int absValue = 0;
-                    int minAbsValue = 360;
-                    prevWay = null;
-                    int bearingOfPrevSegment = segment.getFootwaySegment().getBearing() - 180;
-                    if (bearingOfPrevSegment < 0)
-                        bearingOfPrevSegment += 360;
-                    for (IntersectionPoint.IntersectionWay way : nextPoint.getIntersection().getSubPoints()) {
-                        way.setRelativeBearing(segment.getFootwaySegment().getBearing());
-                        absValue = Math.abs(bearingOfPrevSegment - way.getIntersectionBearing());
-                        if (absValue > 180)
-                            absValue = 360 - absValue;
-                        if (absValue < minAbsValue) {
-                            prevWay = way;
-                            minAbsValue = absValue;
-                        }
-                    }
-                    Collections.sort(nextPoint.getIntersection().getSubPoints());
-                    ArrayList<String> streetList = new ArrayList<String>();
-                    for (IntersectionPoint.IntersectionWay way : nextPoint.getIntersection().getSubPoints()) {
-                        if (way != prevWay) {
-                            streetList.add(
-                                    HelperFunctions.getFormatedDirection(way.getRelativeBearing())
-                                    + ": " + way.getName());
-                        }
-                    }
-                    Toast.makeText(getActivity(),
-                            String.format(
-                                getResources().getString(R.string.messageTwentyFiveMetersFromIntersection),
-                                nextPoint.getIntersection().getName(), TextUtils.join(";", streetList)),
-                            Toast.LENGTH_SHORT).show();
-                } else if (segment.getFootwaySegment().getDistance() > 25
-                        && ! nextPoint.isEmpty()) {
-                    Toast.makeText(getActivity(),
-                            getResources().getString(R.string.messageTwentyFiveMeters),
-                            Toast.LENGTH_SHORT).show();
-                }
-            }
-            if ((pointFoundBearing == false) && (pointFoundDistance == true)) {
-                if (nextPoint.getIntersection() != null
-                        && nextPoint.getIntersection().getNumberOfBigStreets() > 1) {
-                    threshold_angle = 40;
-                }
-                if (calculated_angle > threshold_angle || currentDistance <= 5) {
-                    pointFoundBearing = true;
-                    String nextInstruction;
-                    if (nextPoint.getPoint().getTurn() > -1) {
-                        String nextDirection = HelperFunctions.getFormatedDirection(nextPoint.getPoint().getTurn());
-                        if (nextDirection.equals(getResources().getString(R.string.directionStraightforward))) {
-                            nextInstruction = String.format(
-                                        getResources().getString(R.string.messageReachedIntermediatePointAhead),
-                                        route.getNextPointNumber(), route.getNumberOfPoints() );
-                        } else {
-                            nextInstruction = String.format(
-                                        getResources().getString(R.string.messageReachedIntermediatePointTurn),
-                                        route.getNextPointNumber(), route.getNumberOfPoints(),
-                                        HelperFunctions.getFormatedDirection(nextPoint.getPoint().getTurn()) );
-                        }
-                        if (nextWay != null) {
-                            nextInstruction += String.format(
-                                        getResources().getString(R.string.messageReachedIntermediatePointNextSegment),
-                                        nextWay.getName());
-                        }
-                    } else {
-                        nextInstruction = String.format(
-                                    getResources().getString(R.string.messageReachedDestinationPoint),
-                                    route.getNextPointNumber(), route.getNumberOfPoints() );
-                    }
-                    Toast.makeText(getActivity(), nextInstruction, Toast.LENGTH_SHORT).show();
-                }
-            }
-        }
-        // transport segment
-        if (segment.getTransportSegment() != null) {
-            if ((currentDistance < 75) && (pointFoundDistance == false)) {
-                pointFoundDistance = true;
-                Toast.makeText(getActivity(),
-                        String.format(
-                            getResources().getString(R.string.messageReachedStation),
-                            nextPoint.getPoint().getName() ),
-                        Toast.LENGTH_SHORT).show();
-            }
-        }
-
-
-        // refresh distance and bearing to the next point
+        TextView labelCurrentPoint= (TextView) nextPointLayout.findViewById(R.id.labelCurrentPoint);
         labelCurrentPoint.setText( String.format(
                 getResources().getString(R.string.messagePointProgress),
                 route.getNextPointNumber(), route.getNumberOfPoints() ));
+
+        TextView labelDistance= (TextView) nextPointLayout.findViewById(R.id.labelDistance);
+        int currentBearing = currentLocation.bearingTo(route.getNextPoint().getPoint());
+        int currentDistance = currentLocation.distanceTo(route.getNextPoint().getPoint());
         labelDistance.setText( String.format(
                 getResources().getString(R.string.messageDistanceAndBearing),
                 currentDistance, HelperFunctions.getFormatedDirection(currentBearing - currentCompassValue),
                 HelperFunctions.getCompassDirection(currentCompassValue)));
         if (settingsManager.useGPSAsBearingSource())
             labelDistance.setText(labelDistance.getText().toString() + " (GPS)");
-
-        // hide labels if they are empty
-        if (labelNextSegmentDescription.getText().toString().equals(""))
-            labelNextSegmentDescription.setVisibility(View.GONE);
-        else
-            labelNextSegmentDescription.setVisibility(View.VISIBLE);
-        if (labelDetailInformation.getText().toString().equals(""))
-            labelDetailInformation.setVisibility(View.GONE);
-        else
-            labelDetailInformation.setVisibility(View.VISIBLE);
     }
 
     public void showSimulationDialog() {
@@ -1067,9 +829,6 @@ public class RouterFragment extends Fragment {
         settingsManager.addToTemporaryRouterFragmentSettings("buttonSimulation",
                 (Integer) buttonSimulation.getTag());
         gpsStatusHandler.removeCallbacks(gpsStatusUpdater);
-        poiManager.cancel();
-        positionManager.setPositionListener(null);
-        sensorsManager.setSensorsListener(null);
         // stop simulation
         if ((Integer) buttonSimulation.getTag() > 0) {
             mHandler.removeCallbacks(routeSimulator);
@@ -1078,6 +837,7 @@ public class RouterFragment extends Fragment {
 
     @Override public void onResume() {
         super.onResume();	
+        System.out.println("xxx router frag onResume");
         if (globalData == null) {
             globalData = ((Globals) getActivity().getApplicationContext());
         }
@@ -1097,7 +857,6 @@ public class RouterFragment extends Fragment {
         // get new route
         if (globalData.getValue("route") != null) {
             if ((route == null) || ((Boolean) globalData.getValue("newRoute") == true)) {
-                System.out.println("xx route null but new comes from globals");
                 route = (Route) globalData.getValue("route");
                 globalData.setValue("newRoute", false);
                 // change to route list subfragment
@@ -1112,8 +871,11 @@ public class RouterFragment extends Fragment {
                     index = 0;
                 spinnerAdditionalOptions.setSelection(index);
                 settingsManager.addToTemporaryRouterFragmentSettings("spinnerAdditionalOptions", index);
+                // update user interface
                 updateLabelStatus();
                 updateUserInterface();
+                // speak route description
+                ttsInstance.speak(route.toString(), TextToSpeech.QUEUE_FLUSH, null);
             }
         }
         // warn if we got no route
@@ -1130,13 +892,13 @@ public class RouterFragment extends Fragment {
         keyboardManager.setKeyboardListener(new MyKeyboardListener());
         // sensors manager
         sensorsManager.setSensorsListener(new MySensorsListener());
-        // resume gps
+        // position manager
         positionManager.setPositionListener(new MyPositionListener());
         // resume simulation
         if ((Integer) buttonSimulation.getTag() > 0)
             mHandler.postDelayed(routeSimulator, 100);
         // gps quality handler
-        //-.-gpsStatusHandler.postDelayed(gpsStatusUpdater, 100);
+        gpsStatusHandler.postDelayed(gpsStatusUpdater, 100);
     }
 
     public void queryPOIListUpdate() {
@@ -1162,19 +924,17 @@ public class RouterFragment extends Fragment {
 
     public void previousRoutePoint() {
         if (route == null) {
-            messageToast.setText(getResources().getString(R.string.messageNoRouteLoaded));
-            messageToast.show();
+            ttsInstance.speak(getResources().getString(R.string.messageNoRouteLoaded), TextToSpeech.QUEUE_FLUSH, null);
             return;
         } else if (route.getNextPointNumber() == 1) {
-            messageToast.setText(getResources().getString(R.string.messageFirstRoutePoint));
-            messageToast.show();
+            ttsInstance.speak(getResources().getString(R.string.messageFirstRoutePoint), TextToSpeech.QUEUE_FLUSH, null);
             return;
-        } else {
-            Toast.makeText(getActivity(),
-                    getResources().getString(R.string.messagePreviousPoint),
-                    Toast.LENGTH_SHORT).show();
         }
         route.previousPoint();
+        String instruction = String.format(
+                getResources().getString(R.string.messagePreviousPoint),
+                route.getRoutingSegmentInstruction(), route.getRoutingPointInstruction());
+        ttsInstance.speak(instruction, TextToSpeech.QUEUE_FLUSH, null);
         lastSpokenLocation = currentLocation;
         oldBearingValue = -1;
         pointFoundBearing = false;
@@ -1192,31 +952,17 @@ public class RouterFragment extends Fragment {
 
     public void nextRoutePoint() {
         if (route == null) {
-            messageToast.setText(getResources().getString(R.string.messageNoRouteLoaded));
-            messageToast.show();
+            ttsInstance.speak(getResources().getString(R.string.messageNoRouteLoaded), TextToSpeech.QUEUE_FLUSH, null);
             return;
         } else if (route.getNextPointNumber() == route.getNumberOfPoints()) {
-            messageToast.setText(getResources().getString(R.string.messageLastRoutePoint));
-            messageToast.show();
+            ttsInstance.speak(getResources().getString(R.string.messageLastRoutePoint), TextToSpeech.QUEUE_FLUSH, null);
             return;
         }
         route.nextPoint();
-        RouteObjectWrapper segment = route.getNextSegment();
-        if (segment.getFootwaySegment() != null) {
-            String instruction = String.format(
-                    getResources().getString(R.string.messageNextPointFootway),
-                    segment.getFootwaySegment().getDistance(), segment.getFootwaySegment().getName());
-            if (segment.getFootwaySegment().getSidewalk() >= 0)
-                instruction += ", " + segment.getFootwaySegment().printSidewalk();
-            Toast.makeText(getActivity(), instruction, Toast.LENGTH_SHORT).show();
-        } else if (segment.getTransportSegment() != null) {
-            Toast.makeText(getActivity(),
-                    String.format(
-                        getResources().getString(R.string.messageNextPointTransport),
-                        segment.getTransportSegment().getName(),
-                        segment.getTransportSegment().getDepartureTime()),
-                    Toast.LENGTH_SHORT).show();
-        }
+        String instruction = String.format(
+                getResources().getString(R.string.messageNextPoint),
+                route.getRoutingSegmentInstruction(), route.getRoutingPointInstruction());
+        ttsInstance.speak(instruction, TextToSpeech.QUEUE_FLUSH, null);
         lastSpokenLocation = currentLocation;
         oldBearingValue = -1;
         pointFoundBearing = false;
@@ -1230,6 +976,37 @@ public class RouterFragment extends Fragment {
             updateUserInterface();
         }
         updateRouteCurrentPositionFragment();
+    }
+
+    private String getAtIntersectionInstruction() {
+        String instruction = "";
+        RouteObjectWrapper nextPoint = route.getNextPoint();
+        if (nextPoint.getPoint().getTurn() > -1) {
+            String nextDirection = HelperFunctions.getFormatedDirection(nextPoint.getPoint().getTurn());
+            if (nextDirection.equals(getResources().getString(R.string.directionStraightforward))) {
+                instruction = String.format(
+                        getResources().getString(R.string.messageReachedIntermediatePointAhead),
+                        route.getNextPointNumber(), route.getNumberOfPoints() );
+            } else {
+                instruction = String.format(
+                        getResources().getString(R.string.messageReachedIntermediatePointTurn),
+                        route.getNextPointNumber(), route.getNumberOfPoints(),
+                        HelperFunctions.getFormatedDirection(nextPoint.getPoint().getTurn()) );
+            }
+            if (nextPoint.getIntersection() != null) {
+                IntersectionPoint intersection = nextPoint.getIntersection();
+                if (intersection.getNextWay() != null) {
+                    instruction += String.format(
+                            getResources().getString(R.string.messageReachedIntermediatePointNextSegment),
+                            intersection.getNextWay().getName());
+                }
+            }
+        } else {
+            instruction = String.format(
+                    getResources().getString(R.string.messageReachedDestinationPoint),
+                    route.getNextPointNumber(), route.getNumberOfPoints() );
+        }
+        return instruction;
     }
 
     @Override public void onActivityResult(int requestCode, int resultCode, Intent data){
@@ -1263,6 +1040,48 @@ public class RouterFragment extends Fragment {
                     return;
             }
         }
+        public void headsetButtonPressed(int numberOfClicks) {
+            if (route == null) {
+                ttsInstance.speak(getResources().getString(R.string.messageNoRouteLoaded), TextToSpeech.QUEUE_FLUSH, null);
+                return;
+            }
+            if (numberOfClicks == 1) {
+                int currentBearing = currentLocation.bearingTo(route.getNextPoint().getPoint());
+                int currentDistance = currentLocation.distanceTo(route.getNextPoint().getPoint());
+                String speakMe = String.format(
+                        getResources().getString(R.string.messageDistanceAndBearingWithoutCompass),
+                        currentDistance, HelperFunctions.getFormatedDirection(currentBearing - currentCompassValue));
+                if (pointFoundDistance == false) {
+                    speakMe += ". " + route.getRoutingSegmentInstruction() + ". " + route.getRoutingPointInstruction();
+                } else {
+                    if (pointFoundBearing == false) {
+                        speakMe += ". " + route.getRoutingPointInstruction();
+                    } else {
+                        speakMe += ". " + getAtIntersectionInstruction();
+                    }
+                    if (route.getNextPoint().getIntersection() != null
+                            && route.getNextSegment().getFootwaySegment() != null) {
+                        speakMe += ". " + String.format(
+                                getResources().getString(R.string.messageDynamicIntersectionDescription),
+                                route.getNextPoint().getIntersection().getIntersectionStructure(
+                                    currentCompassValue,
+                                    route.getNextSegment().getFootwaySegment().getBearing(), true));
+                    }
+                }
+                // if already speaking, stop, else speak built string
+                if (ttsInstance.isSpeaking()) {
+                    ttsInstance.stop();
+                } else {
+                    ttsInstance.speak(speakMe, TextToSpeech.QUEUE_FLUSH, null);
+                }
+            } else if (numberOfClicks == 2) {
+                vibrator.vibrate(200);
+                nextRoutePoint();
+            } else if (numberOfClicks == 3) {
+                vibrator.vibrate(200);
+                previousRoutePoint();
+            }
+        }
     }
 
     private class MyPOIListener implements POIManager.POIListener {
@@ -1274,10 +1093,15 @@ public class RouterFragment extends Fragment {
                         break;
                     if (!processedPOIList.contains(poi)) {
                         processedPOIList.add(poi);
-                        messageToast.setText(String.format(
+                        String speakPOI = String.format(
                                 getResources().getString(R.string.messageLatestPOI),
-                                poi.toString()));
-                        messageToast.show();
+                                poi.toString());
+                        if (globalData.applicationInBackground()) {
+                            ttsInstance.speak(speakPOI, TextToSpeech.QUEUE_ADD, null);
+                        } else {
+                            messageToast.setText(speakPOI);
+                            messageToast.show();
+                        }
                         updateLabelStatus();
                     }
                 }
@@ -1292,8 +1116,12 @@ public class RouterFragment extends Fragment {
                 currentAddress = address;
                 String addressLabel = String.format(
                         getResources().getString(R.string.messageCurrentAddress), address);
-                messageToast.setText(addressLabel);
-                messageToast.show();
+                if (globalData.applicationInBackground()) {
+                    ttsInstance.speak(addressLabel, TextToSpeech.QUEUE_ADD, null);
+                } else {
+                    messageToast.setText(addressLabel);
+                    messageToast.show();
+                }
                 updateLabelStatus();
             }
         }
@@ -1311,13 +1139,6 @@ public class RouterFragment extends Fragment {
             currentLocation = new Point(
                     getResources().getString(R.string.locationNameCurrentPosition), location);
             currentLocation.addAccuracy( (int) Math.round(location.getAccuracy()) );
-            if (location.getSpeed() < 3.0
-                    && (lastSpokenLocation == null || currentLocation.distanceTo(lastSpokenLocation) > 20)) {
-                lastSpokenLocation = currentLocation;
-                TextView labelDistance= (TextView) nextPointLayout.findViewById(R.id.labelDistance);
-                messageToast.setText(labelDistance.getText().toString());
-                messageToast.show();
-            }
             if (location.getSpeed() > 3.0) {
                 numberOfHighSpeeds = 2;
             } else if (numberOfHighSpeeds > 0) {
@@ -1334,6 +1155,80 @@ public class RouterFragment extends Fragment {
             if ( ((String) spinnerAdditionalOptions.getSelectedItem()).equals(getResources().getString(R.string.arrayAAAddress)) ) {
                 queryAddressUpdate();
             }
+
+            // inform the user about reaching the next route point
+            // either by bearing or distance
+            // but only if we already got a route
+            if (route == null)
+                return;
+            String instruction = "";
+            int threshold_angle = 75;
+            int calculated_angle = 0;
+            RouteObjectWrapper nextPoint = route.getNextPoint();
+            RouteObjectWrapper nextSegment = route.getNextSegment();
+            int currentBearing = currentLocation.bearingTo(nextPoint.getPoint());
+            int currentDistance = currentLocation.distanceTo(nextPoint.getPoint());
+            if (oldBearingValue == -1)
+                oldBearingValue = currentBearing;
+
+            // speak distance and bearing to next route point every 20 meters
+            if (location.getSpeed() < 3.0
+                    && (lastSpokenLocation == null || currentLocation.distanceTo(lastSpokenLocation) > 20)) {
+                lastSpokenLocation = currentLocation;
+                if (! ttsInstance.isSpeaking()) {
+                    ttsInstance.speak(
+                            String.format(
+                                getResources().getString(R.string.messageDistanceAndBearingWithoutCompass),
+                                currentDistance,
+                                HelperFunctions.getFormatedDirection(currentBearing - currentCompassValue)
+                                ),
+                            TextToSpeech.QUEUE_FLUSH, null);
+                }
+            }
+
+            // footway segment
+            if (nextSegment.getFootwaySegment() != null) {
+                calculated_angle = Math.min(Math.abs(nextSegment.getFootwaySegment().getBearing() - currentBearing),
+                        (360 - Math.abs(nextSegment.getFootwaySegment().getBearing() - currentBearing)) );
+                if ((currentDistance < 25) && (pointFoundDistance == false)) {
+                    pointFoundDistance = true;
+                    if (nextSegment.getFootwaySegment().getDistance() > 25) {
+                        if (nextPoint.getIntersection() != null) {
+                            instruction = String.format(
+                                    getResources().getString(R.string.messageTwentyFiveMetersFromIntersection),
+                                    nextPoint.getIntersection().getName(),
+                                    nextPoint.getIntersection().getIntersectionStructure(
+                                            currentCompassValue, nextSegment.getFootwaySegment().getBearing(), true) );
+                        } else {
+                            instruction = String.format(
+                                    getResources().getString(R.string.messageTwentyFiveMeters));
+                        }
+                        ttsInstance.speak(instruction, TextToSpeech.QUEUE_FLUSH, null);
+                    }
+                }
+
+                if ((pointFoundBearing == false) && (pointFoundDistance == true)) {
+                    if (nextPoint.getIntersection() != null
+                            && nextPoint.getIntersection().getNumberOfBigStreets() > 1) {
+                        threshold_angle = 40;
+                    }
+                    if (calculated_angle > threshold_angle || currentDistance <= 5) {
+                        pointFoundBearing = true;
+                        ttsInstance.speak(getAtIntersectionInstruction(), TextToSpeech.QUEUE_FLUSH, null);
+                    }
+                }
+            }
+
+            // transport segment
+            if (nextSegment.getTransportSegment() != null) {
+                if ((currentDistance < 75) && (pointFoundDistance == false)) {
+                    pointFoundDistance = true;
+                    instruction = String.format(
+                            getResources().getString(R.string.messageReachedStation),
+                            nextPoint.getPoint().getName());
+                    ttsInstance.speak(instruction, TextToSpeech.QUEUE_FLUSH, null);
+                }
+            }
         }
     }
 
@@ -1346,8 +1241,10 @@ public class RouterFragment extends Fragment {
                 updateLabelStatus();
         }
         public void shakeDetected() {
-            if (settingsManager.getShakeForNextRoutePoint() == true
-                    && pointFoundDistance == true) {
+            if (pointFoundDistance
+                    && ! globalData.applicationInBackground()
+                    && settingsManager.getShakeForNextRoutePoint()) {
+                vibrator.vibrate(200);
                 nextRoutePoint();
             }
         }

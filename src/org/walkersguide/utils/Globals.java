@@ -1,6 +1,7 @@
 package org.walkersguide.utils;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -9,7 +10,10 @@ import org.walkersguide.sensors.PositionManager;
 import org.walkersguide.sensors.SensorsManager;
 
 import android.app.Application;
+import android.content.ComponentName;
 import android.content.Context;
+import android.media.AudioManager;
+import android.speech.tts.TextToSpeech;
 
 /**
  * global values which are used to communicate between fragments and activities
@@ -31,6 +35,7 @@ public class Globals extends Application {
     private POIManager poiManagerInstance;
     private AddressManager addressManagerInstance;
     private KeyboardManager keyboardManagerInstance;
+    private TextToSpeech ttsInstance;
 
     private Timer mActivityTransitionTimer;
     private TimerTask mActivityTransitionTimerTask;
@@ -113,6 +118,19 @@ public class Globals extends Application {
         return this.keyboardManagerInstance;
     }
 
+    public TextToSpeech getTTSInstance() {
+        if (this.ttsInstance == null) {
+            this.ttsInstance = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+                @Override public void onInit(int status) {
+                    if(status != TextToSpeech.ERROR) {
+                        ttsInstance.setLanguage(Locale.getDefault());
+                    }
+                }
+            });
+        }
+        return this.ttsInstance;
+    }
+
     public void startActivityTransitionTimer() {
         this.mActivityTransitionTimer = new Timer();
         this.mActivityTransitionTimerTask = new TimerTask() {
@@ -120,11 +138,13 @@ public class Globals extends Application {
                 // is run, when application was sent to background or the screen was turned off
                 Globals globalData = ((Globals) Globals.getContext());
                 globalData.setApplicationInBackground(true);
-                globalData.getPositionManagerInstance().stopGPS();
-                globalData.getSensorsManagerInstance().stopSensors();
-                //MediaPlayer mp = MediaPlayer.create(globalData.getContext(), R.raw.paused);
-                //mp.start();
-                //System.out.println("xxx background entered");
+                if (! globalData.getSettingsManagerInstance().getStayActiveInBackground()) {
+                    globalData.getPositionManagerInstance().stopGPS();
+                    globalData.getSensorsManagerInstance().stopSensors();
+                    AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                    audioManager.unregisterMediaButtonEventReceiver(
+                            new ComponentName(getPackageName(), RemoteControlReceiver.class.getName()));
+                }
             }
         };
         this.mActivityTransitionTimer.schedule(mActivityTransitionTimerTask,

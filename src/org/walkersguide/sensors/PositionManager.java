@@ -38,6 +38,7 @@ public class PositionManager implements ConnectionCallbacks, OnConnectionFailedL
     }
 
     private static final String tag = "PositionManager"; // for Log
+    private Globals globalData;
     private PositionListener pRawGPSListener, pFilteredListener;
     private ErrorMessagesListener pErrorMessagesListener;
     private Context mContext;
@@ -53,6 +54,7 @@ public class PositionManager implements ConnectionCallbacks, OnConnectionFailedL
     private LocationRequest locationRequest;
     private GoogleApiClient locationClient;
     private long lastMatchTime;
+    private int diffBetweenTwoFixesInMilliseconds;
 
     // warn, if we get no new location at all
     private Handler mHandler;
@@ -60,7 +62,7 @@ public class PositionManager implements ConnectionCallbacks, OnConnectionFailedL
 
     public PositionManager(Context mContext) {
         this.mContext = mContext;
-        Globals globalData = ((Globals) mContext);
+        globalData = ((Globals) mContext);
         messageToast = Toast.makeText(mContext, "", Toast.LENGTH_SHORT);
         settingsManager = globalData.getSettingsManagerInstance();
         status = Status.DISABLED;
@@ -70,6 +72,7 @@ public class PositionManager implements ConnectionCallbacks, OnConnectionFailedL
         this.gpsTimer = new GPSTimer();
         vibrator = (Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE);
         lastMatchTime = System.currentTimeMillis();
+        diffBetweenTwoFixesInMilliseconds = 5000;
         // Figure out if we have a location somewhere that we can use as a current best location
         Location lastKnownSavedLocation = settingsManager.loadLastLocation();
         if (isBetterLocation(lastKnownSavedLocation, currentBestLocation))
@@ -277,9 +280,13 @@ public class PositionManager implements ConnectionCallbacks, OnConnectionFailedL
             settingsManager.storeLastLocation(currentBestLocation);
             if (pFilteredListener != null)
                 pFilteredListener.locationChanged(currentBestLocation);
+            if (globalData.applicationInBackground())
+                diffBetweenTwoFixesInMilliseconds = 2000;
+            else
+                diffBetweenTwoFixesInMilliseconds = 5000;
             // hand the location object to the SensorsManager class to check the compass integrity
             if (pRawGPSListener != null && newLocation != null
-                    && System.currentTimeMillis() - lastMatchTime > 5000) {
+                    && System.currentTimeMillis() - lastMatchTime > diffBetweenTwoFixesInMilliseconds) {
                 // first case is the fallback for an indoor location object without bearing and speed value
                 // if we currently use GPS as bearing source, then we tell the SensorsManager to
                 // switch back to compass but we do that carefully

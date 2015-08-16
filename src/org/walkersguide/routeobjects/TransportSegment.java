@@ -78,6 +78,13 @@ public class TransportSegment {
         this.arrivalTimeMillis = value;
     }
 
+    public String getRoutingSegmentInstruction() {
+        return String.format(
+                Globals.getContext().getResources().getString(R.string.messageSegmentDescTransport),
+                this.getName(), this.getDepartureTime(),
+                this.getDuration(), this.getNumberOfStops());
+    }
+
     public String toString() {
         String s = String.format(
                 Globals.getContext().getResources().getString(R.string.roTransportDescription),

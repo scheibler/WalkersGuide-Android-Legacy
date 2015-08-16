@@ -38,12 +38,6 @@ public class GPSStatusActivity extends  AbstractActivity {
         mainLayout = (LinearLayout) findViewById(R.id.linearLayoutMain);
     }
 
-    @Override public void onPause() {
-        super.onPause();
-        sensorsManager.setSensorsListener(null);
-        positionManager.setPositionListener(null);
-    }
-
     @Override public void onResume() {
         super.onResume();
         sensorsManager.setSensorsListener(new MySensorsListener());

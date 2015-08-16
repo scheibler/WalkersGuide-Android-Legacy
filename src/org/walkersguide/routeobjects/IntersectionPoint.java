@@ -1,6 +1,7 @@
 package org.walkersguide.routeobjects;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -9,17 +10,22 @@ import org.walkersguide.R;
 import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.HelperFunctions;
 
+import android.text.TextUtils;
+
 public class IntersectionPoint extends Point {
 
     private ArrayList<IntersectionWay> subPoints;
     private ArrayList<POIPoint> trafficSignalList;
     private int numberOfStreetsWithName;
+        private IntersectionWay prevWay, nextWay;
 
     public IntersectionPoint(String name, Double lat, Double lon, String subType, int numberOfStreetsWithName) {
     	super(name, lat, lon, "intersection", subType);
         this.subPoints = new ArrayList<IntersectionWay>();
         this.trafficSignalList = new ArrayList<POIPoint>();
         this.numberOfStreetsWithName = numberOfStreetsWithName;
+        this.prevWay = null;
+        this.nextWay = null;
     }
 
     public void addSubPoint(IntersectionWay w) {
@@ -46,6 +52,101 @@ public class IntersectionPoint extends Point {
     public ArrayList<POIPoint> getTrafficSignalList() {
         return this.trafficSignalList;
     }
+
+    public String getIntersectionStructure(int userViewingDirection, int segmentDirection, boolean hideWayInUsersBack) {
+        int bearingOfPrevSegment = segmentDirection - 180;
+        if (bearingOfPrevSegment < 0)
+            bearingOfPrevSegment += 360;
+        int bearingOfNextSegment = segmentDirection + super.getTurn();
+        if (bearingOfNextSegment >= 360)
+            bearingOfNextSegment -= 360;
+        // find closest intersection way and calculate relative bearings
+        int absPrevWay = 0, absNextWay = 0;
+        int minAbsPrevWay = 360, minAbsNextWay = 360;
+        for (IntersectionWay way : this.getSubPoints()) {
+            way.setRelativeBearing(userViewingDirection);
+            // find prev way
+            absPrevWay = Math.abs(bearingOfPrevSegment - way.getIntersectionBearing());
+            if (absPrevWay > 180)
+                absPrevWay = 360 - absPrevWay;
+            if (absPrevWay < minAbsPrevWay) {
+                minAbsPrevWay = absPrevWay;
+                prevWay = way;
+            }
+            // find next way
+            absNextWay = Math.abs(bearingOfNextSegment - way.getIntersectionBearing());
+            if (absNextWay > 180)
+                absNextWay = 360 - absNextWay;
+            if (absNextWay < minAbsNextWay) {
+                minAbsNextWay = absNextWay;
+                nextWay = way;
+            }
+        }
+        Collections.sort(this.getSubPoints());
+        ArrayList<String> streetList = new ArrayList<String>();
+        for (IntersectionWay way : this.getSubPoints()) {
+            if (hideWayInUsersBack && way == prevWay)
+                continue;
+            if (super.getTurn() >= 0 && way == nextWay) {
+                streetList.add(
+                        HelperFunctions.getFormatedDirection(way.getRelativeBearing())
+                        + ": *" + way.getName());
+            } else {
+                streetList.add(
+                        HelperFunctions.getFormatedDirection(way.getRelativeBearing())
+                        + ": " + way.getName() );
+            }
+        }
+        return TextUtils.join(",", streetList);
+    }
+
+    public IntersectionWay getNextWay() {
+        return this.nextWay;
+    }
+
+    /**
+     * routing instruction for this intersection
+     * routeIndex:
+     *      0: first route object
+     *      1: intermediate route object
+     *      2:  last route object
+     */
+    public String getRoutingPointInstruction(int routeIndex) {
+        if (routeIndex == 0) {
+            return String.format(
+                    Globals.getContext().getResources().getString(R.string.messagePointDescInterStart),
+                    this.getName());
+        } else if (routeIndex == 1) {
+            String nextDirection = HelperFunctions.getFormatedDirection(super.getTurn());
+            if (nextDirection.equals(Globals.getContext().getResources().getString(R.string.directionStraightforward))) {
+                if (nextWay != null) {
+                    return String.format(
+                            Globals.getContext().getResources().getString(R.string.messagePointDescInterInterStraightWithName),
+                            super.getName(), nextWay.getName());
+                } else {
+                    return String.format(
+                            Globals.getContext().getResources().getString(R.string.messagePointDescInterInterStraight),
+                            super.getName());
+                }
+            } else {
+                if (nextWay != null) {
+                    return String.format(
+                            Globals.getContext().getResources().getString(R.string.messagePointDescInterInterWithStreet),
+                            super.getName(), nextDirection, nextWay.getName());
+                } else {
+                    return String.format(
+                            Globals.getContext().getResources().getString(R.string.messagePointDescInterInter),
+                            super.getName(), nextDirection);
+                }
+            }
+        } else if (routeIndex == 2) {
+            return String.format(
+                    Globals.getContext().getResources().getString(R.string.messagePointDescInterDestination),
+                    this.getName());
+        }
+        return "";
+    }
+
 
     public String toString() {
         String s = String.format(

@@ -713,11 +713,6 @@ public class HistoryActivity extends AbstractActivity {
         alertDialog.show();
     }
 
-    @Override public void onPause() {
-        super.onPause();
-        positionManager.setPositionListener(null);
-    }
-
     @Override public void onResume() {
         super.onResume();
         settingsManager = globalData.getSettingsManagerInstance();

@@ -48,24 +48,16 @@
 
             <!-- route settings -->
             <TextView
-                android:id="@+id/labelSubHeading1"
+                android:id="@+id/labelStayActiveDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dip"
-                android:text="@string/labelSettingsActivityRouteSubHeading" 
-                android:textSize="18sp" />
+                android:text="@string/labelStayActiveDescription"  />
 
-            <TextView
-                android:id="@+id/labelRouteFactor"
+            <Button
+                android:id="@+id/buttonStayActive"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dip"
-                android:text="@string/labelSettingsActivityRouteFactor"  />
-
-            <Spinner
-                android:id="@+id/spinnerRouteFactor"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:text="@string/buttonStayActive" />
 
             <TextView
                 android:id="@+id/labelShakeDescription"
@@ -96,7 +88,7 @@
 
             <!-- server settings -->
             <TextView
-                android:id="@+id/labelSubHeading2"
+                android:id="@+id/labelSettingsActivityServerSubHeading"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dip"
@@ -162,6 +154,14 @@
             </LinearLayout>
 
             <!-- store and restore settings -->
+            <TextView
+                android:id="@+id/labelSettingsActivityImportExportSubHeading"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dip"
+                android:text="@string/labelSettingsActivityImportExportSubHeading" 
+                android:textSize="18sp" />
+
             <Button
                 android:id="@+id/buttonRestoreFromDisk"
                 android:layout_width="match_parent"

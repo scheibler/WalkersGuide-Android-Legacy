@@ -2,9 +2,13 @@ package org.walkersguide.userinterface;
 
 import org.walkersguide.sensors.PositionManager;
 import org.walkersguide.utils.Globals;
+import org.walkersguide.utils.RemoteControlReceiver;
 
 import android.app.Activity;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.media.AudioManager;
 import android.os.Bundle;
 import android.provider.Settings;
 
@@ -27,11 +31,22 @@ public abstract class AbstractActivity extends Activity
 
     @Override public void onResume() {
         super.onResume();
-        if (globalData.applicationInBackground()) {
+        System.out.println("xxx abstract activity onResume");
+        // null all listeners
+        globalData.getAddressManagerInstance().setAddressListener(null);
+        globalData.getKeyboardManagerInstance().setKeyboardListener(null);
+        globalData.getPOIManagerInstance().setPOIListener(null);
+        globalData.getPositionManagerInstance().setPositionListener(null);
+        globalData.getSensorsManagerInstance().setSensorsListener(null);
+
+        // resume position and sensors if necessary
+        if (globalData.applicationInBackground()
+                && ! globalData.getSettingsManagerInstance().getStayActiveInBackground()) {
             globalData.getPositionManagerInstance().resumeGPS();
             globalData.getSensorsManagerInstance().resumeSensors();
-            //MediaPlayer mp = MediaPlayer.create(this, R.raw.restored);
-            //mp.start();
+            AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            audioManager.registerMediaButtonEventReceiver(
+                    new ComponentName(getPackageName(), RemoteControlReceiver.class.getName()));
         }
         globalData.stopActivityTransitionTimer();
     }

@@ -158,7 +158,7 @@ public class POIPresetsActivity extends AbstractActivity {
 
         // load checkboxes
         int checkBoxStartID = 29482913;
-    	LayoutParams lp = new LayoutParams(
+        LayoutParams lp = new LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT );
         if (supportedPOITags.equals("")) {
@@ -167,46 +167,65 @@ public class POIPresetsActivity extends AbstractActivity {
         } else {
             labelError.setVisibility(View.GONE);
             for(String tag : supportedPOITags.split("\\+")) {
+                String checkboxLabel = "";
+                if (tag.equals("favorites")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryFavorites);
+                } else if (tag.equals("transport_bus_tram")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryBusTram);
+                } else if (tag.equals("transport_train_lightrail_subway")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryTrain);
+                } else if (tag.equals("transport_airport_ferry_aerialway")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryAirportFerry);
+                } else if (tag.equals("transport_taxi")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryTaxi);
+                } else if (tag.equals("food")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryFood);
+                } else if (tag.equals("tourism")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryTourism);
+                } else if (tag.equals("nature")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryNature);
+                } else if (tag.equals("shop")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryShop);
+                } else if (tag.equals("education")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryEducation);
+                } else if (tag.equals("health")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryHealth);
+                } else if (tag.equals("entertainment")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryEntertainment);
+                } else if (tag.equals("finance")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryFinance);
+                } else if (tag.equals("public_service")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryPublicService);
+                } else if (tag.equals("all_buildings_with_name")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryBuildingsWithName);
+                } else if (tag.equals("surveillance")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategorySurveillance);
+                } else if (tag.equals("bridge")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryBridge);
+                } else if (tag.equals("bench")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryBench);
+                } else if (tag.equals("trash")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryTrash);
+                } else if (tag.equals("named_intersection")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryNamedIntersection);
+                } else if (tag.equals("other_intersection")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryOtherIntersection);
+                } else if (tag.equals("pedestrian_crossings")) {
+                    checkboxLabel = getResources().getString(R.string.labelPOICategoryPedestrianCrossings);
+                } else {
+                    // skip if the tag isn't supported by the app
+                    continue;
+                }
+                CheckBox checkBox;
                 if (!checkBoxIDs.containsKey(tag)) {
                     checkBoxIDs.put(tag, checkBoxStartID++);
-                }
-                CheckBox checkBox = (CheckBox) checkBoxLayout.findViewById( checkBoxIDs.get(tag) );
-                if (checkBox == null) {
                     checkBox = new CheckBox(getApplicationContext());
                     checkBox.setId( checkBoxIDs.get(tag) );
                     checkBox.setLayoutParams(lp);
-                    if (tag.equals("favorites")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryFavorites));
-                    } else if (tag.equals("transport")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryTransport));
-                    } else if (tag.equals("food")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryFood));
-                    } else if (tag.equals("tourism")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryTourism));
-                    } else if (tag.equals("shop")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryShop));
-                    } else if (tag.equals("education")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryEducation));
-                    } else if (tag.equals("health")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryHealth));
-                    } else if (tag.equals("entertainment")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryEntertainment));
-                    } else if (tag.equals("finance")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryFinance));
-                    } else if (tag.equals("public_service")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryPublicService));
-                    } else if (tag.equals("named_intersection")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryNamedIntersection));
-                    } else if (tag.equals("other_intersection")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryOtherIntersection));
-                    } else if (tag.equals("traffic_signals")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryTrafficSignals));
-                    } else if (tag.equals("trash")) {
-                        checkBox.setText(getResources().getString(R.string.labelPOICategoryTrash));
-                    } else {
-                        checkBox.setText(tag);
-                    }
+                    checkBox.setText(checkboxLabel);
                     checkBoxLayout.addView(checkBox);
+                } else {
+                    checkBox = (CheckBox) checkBoxLayout.findViewById( checkBoxIDs.get(tag) );
                 }
                 // should it be checked
                 if (preset.getTags().contains(tag))

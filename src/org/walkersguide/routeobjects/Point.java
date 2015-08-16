@@ -229,6 +229,33 @@ public class Point implements Comparable<Point> {
             return bearing;
     }
 
+    /**
+     * routing instruction for this intersection
+     * routeIndex:
+     *      0: first route object
+     *      1: intermediate route object
+     *      2:  last route object
+     */
+    public String getRoutingPointInstruction(int routeIndex) {
+        if (routeIndex == 0) {
+            return String.format(Globals.getContext().getResources().getString(R.string.messagePointDescWayPointStart));
+        } else if (routeIndex == 1) {
+            String nextDirection = HelperFunctions.getFormatedDirection(this.getTurn());
+            if (nextDirection.equals(Globals.getContext().getResources().getString(R.string.directionStraightforward))) {
+                return String.format(Globals.getContext().getResources().getString(R.string.messagePointDescWayPointInterAhead));
+            } else if (nextDirection.equals(Globals.getContext().getResources().getString(R.string.directionBehindYou))) {
+                return String.format(Globals.getContext().getResources().getString(R.string.messagePointDescWayPointInterBehind));
+            } else if (! nextDirection.equals("")) {
+                return String.format(Globals.getContext().getResources().getString(R.string.messagePointDescWayPointInterTurn), nextDirection);
+            } else {
+                return String.format(Globals.getContext().getResources().getString(R.string.messagePointDescWayPointInterNoTurnValue));
+            }
+        } else if (routeIndex == 2) {
+            return String.format(Globals.getContext().getResources().getString(R.string.messagePointDescWayPointDestination));
+        }
+        return "";
+    }
+
 	public String toString() {
         String s = "";
         if (this.getSubType().equals("") || this.getName().equals(this.getSubType())) {

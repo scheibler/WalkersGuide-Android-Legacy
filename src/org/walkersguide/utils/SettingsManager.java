@@ -35,7 +35,7 @@ public class SettingsManager {
     }
 
     // final settings
-    private static final int interfaceVersion = 4;
+    private static final int interfaceVersion = 5;
     private static final String programDataFolder = "WalkersGuide";
     private static final String defaultHostURL = "https://walkersguide.org";
     private static final int defaultPort = 19021;
@@ -45,6 +45,7 @@ public class SettingsManager {
     private static final boolean defaultShakeForNextRoutePoint = true;
     private static final int defaultShakeIntensity = 2;
     private static final BearingSource defaultBearingSource = BearingSource.COMPASS;
+    private static final boolean defaultStayActiveInBackground = false;
     private static final String emailAddress = "support@walkersguide.org";
 
     private Context mContext;
@@ -60,7 +61,7 @@ public class SettingsManager {
     // route vars
     private double routeFactor;
     private ArrayList<String> routingWayClasses;
-    private boolean shakeForNextRoutePoint;
+    private boolean shakeForNextRoutePoint, stayActiveInBackground;
     private int shakeIntensity;
     private BearingSource bearingSource;
     // server vars
@@ -271,6 +272,15 @@ public class SettingsManager {
         this.fakeCompassValues = b;
     }
 
+    public boolean getStayActiveInBackground() {
+        return this.stayActiveInBackground;
+    }
+
+    public void setStayActiveInBackground(boolean b) {
+        this.stayActiveInBackground = b;
+        storeApplicationSettings();
+    }
+
     private void loadApplicationSettings() {
         String applicationSettingsString = settings.getString("ApplicationSettings", "");
         JSONObject jsonApplicationSettingsObject = new JSONObject();
@@ -359,6 +369,11 @@ public class SettingsManager {
             } catch (JSONException e) {
                 this.presetIdInRouterFragment = 0;
             }
+            try {
+                this.stayActiveInBackground = jsonMiscSettings.getBoolean("stayActiveInBackground");
+            } catch (JSONException e) {
+                this.stayActiveInBackground = defaultStayActiveInBackground;
+            }
         } catch (JSONException e) {
             System.out.println(e.getMessage());
         }
@@ -392,6 +407,7 @@ public class SettingsManager {
             JSONObject jsonMiscSettingsObject  = new JSONObject();
             jsonMiscSettingsObject.put("presetIdInPoiFragment", this.presetIdInPoiFragment);
             jsonMiscSettingsObject.put("presetIdInRouterFragment", this.presetIdInRouterFragment);
+            jsonMiscSettingsObject.put("stayActiveInBackground", this.stayActiveInBackground);
             jsonApplicationSettingsObject.put("misc", jsonMiscSettingsObject);
         } catch (JSONException e) {
             System.out.println("server settings couldn't be saved\n" + e.getMessage());
@@ -520,17 +536,22 @@ public class SettingsManager {
                 1, mContext.getResources().getString(R.string.labelPOICategoryFavorites), 1000, "favorites");
         this.poiPresets.add( favorites );
         POIPreset intersections = new POIPreset(
-                2, mContext.getResources().getString(R.string.labelPOICategoryNamedIntersection), 250, "named_intersection");
+                2, mContext.getResources().getString(R.string.labelPOICategoryNamedIntersection), 250, "named_intersection+pedestrian_crossings");
         this.poiPresets.add( intersections );
         POIPreset transport = new POIPreset(
-                3, mContext.getResources().getString(R.string.labelPOICategoryTransport), 1000, "transport");
+                3, mContext.getResources().getString(R.string.labelPOICategoryTransport), 1000,
+                "transport_bus_tram+transport_train_lightrail_subway+transport_airport_ferry_aerialway+transport_taxi");
         this.poiPresets.add( transport );
         POIPreset food = new POIPreset(
-                4, mContext.getResources().getString(R.string.labelPOICategoryFood), 500, "food");
+                4, mContext.getResources().getString(R.string.labelPOICategoryFood), 500, "food+entertainment");
         this.poiPresets.add( food );
         POIPreset shops = new POIPreset(
                 5, mContext.getResources().getString(R.string.labelPOICategoryShop), 500, "shop");
         this.poiPresets.add( shops );
+        POIPreset publicServices = new POIPreset(
+                6, mContext.getResources().getString(R.string.labelPOICategoryPublicService), 500,
+                "public_service+health+education");
+        this.poiPresets.add( publicServices );
         setPresetIdInPoiFragment(2);
         setPresetIdInRouterFragment(2);
         storePOIPresets();

@@ -128,6 +128,21 @@ public class FootwaySegment {
         return "";
     }
 
+    public String getRoutingSegmentInstruction() {
+        String instruction = String.format(
+                Globals.getContext().getResources().getString(R.string.messageSegmentDescFootway),
+                this.getDistance(), this.getName(), this.getSubType());
+        if (! this.getSurface().equals(""))
+            instruction += String.format(
+                    Globals.getContext().getResources().getString(R.string.roWaySurface), this.getSurface());
+        if (this.getSidewalk() >= 0)
+            instruction += ", " + this.printSidewalk();
+        return instruction;
+    }
+
+    /**
+     * toString: used in listViews
+     */
     public String toString() {
         String s = "";
         if (this.getName().equals(this.getSubType())

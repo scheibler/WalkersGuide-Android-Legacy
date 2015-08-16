@@ -147,6 +147,27 @@ public class Route {
         return this.cost;
     }
 
+    public String getRoutingPointInstruction() {
+        RouteObjectWrapper routeObject = this.routeList.get(pointIndex);
+        if (this.getNextPointNumber() == 1) {
+            return routeObject.getRoutingPointInstruction(0);
+        } else if (this.getNextPointNumber() == this.getNumberOfPoints()) {
+            return routeObject.getRoutingPointInstruction(2);
+        } else {
+            return routeObject.getRoutingPointInstruction(1);
+        }
+    }
+
+    public String getRoutingSegmentInstruction() {
+        if (segmentIndex < 0)
+            return "";
+        if (this.routeList.get( segmentIndex ).getFootwaySegment() != null
+                || this.routeList.get( segmentIndex ).getTransportSegment() != null) {
+            return this.routeList.get(segmentIndex).getRoutingSegmentInstruction();
+        }
+        return "";
+    }
+
     public String getRouteDescription() {
         if (this.routeDescription.equals("")) {
             String description = String.format(

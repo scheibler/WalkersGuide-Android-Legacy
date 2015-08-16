@@ -21,11 +21,12 @@ public class SensorsManager {
     }
 
     // general variables
-    private int bearingOfDevice;
+    private Globals globalData;
     private SettingsManager settingsManager;
     private SensorsListener sListener;
     private Context mContext;
     private Toast messageToast;
+    private int bearingOfDevice;
 
     // sensors
     private SensorManager sensorManager;
@@ -61,9 +62,10 @@ public class SensorsManager {
 
     public SensorsManager(Context mContext) {
         this.mContext = mContext;
+        globalData = ((Globals) mContext.getApplicationContext());
         bearingOfDevice = -1;
         messageToast = Toast.makeText(mContext, "", Toast.LENGTH_SHORT);
-        settingsManager = ((Globals) mContext.getApplicationContext()).getSettingsManagerInstance();
+        settingsManager = globalData.getSettingsManagerInstance();
 
         // sensor variables
         sensorManager = (SensorManager)mContext.getSystemService(Context.SENSOR_SERVICE);
@@ -221,9 +223,11 @@ public class SensorsManager {
         private static final int bigThresholdValueDrive = 40;
         private static final int maxNumberOfMatches = 5;
         private int matchCounter;
+        private SettingsManager.BearingSource lastBearingSource;
 
         public MyPositionListener() {
             this.matchCounter = 0;
+            this.lastBearingSource = null;
         }
 
         public void locationChanged(Location location) {
@@ -242,41 +246,56 @@ public class SensorsManager {
             if (location.hasBearing())
                 bearingOfGPS = (int) location.getBearing();
 
-            // check, if the diff between the location bearing value and the current compass is
-            // smaller than the defined threshold
-            // 0 <= diff <= 180
-            int diff = Math.abs(bearingOfGPS - bearingOfMagneticField[0]);
-            if (diff > 180)
-                diff = 360 - diff;
-            if (location.hasSpeed() && location.getSpeed() > 3.0) {
-                if (diff < smallThresholdValue || diff > 180-smallThresholdValue) {
-                    if (matchCounter > 0)
-                        matchCounter -= 1;
-                } else if (diff > bigThresholdValueDrive && diff < 180-bigThresholdValueDrive) {
-                    if (matchCounter < maxNumberOfMatches)
-                        matchCounter += 1;
+            // if the application was put into background, use GPS as bearing source and remember
+            // the priour bearing source, so that we can switch back imediately when the app comes
+            // into foreground again
+            if (globalData.applicationInBackground()) {
+                if (lastBearingSource == null) {
+                    lastBearingSource = settingsManager.getBearingSource();
+                    settingsManager.setBearingSource(SettingsManager.BearingSource.GPS);
                 }
             } else {
-                if (diff < smallThresholdValue) {
-                    if (matchCounter > 0)
-                        matchCounter -= 1;
-                } else if (diff > bigThresholdValueWalk) {
-                    if (matchCounter < maxNumberOfMatches)
-                        matchCounter += 1;
+                if (lastBearingSource != null) {
+                    settingsManager.setBearingSource(lastBearingSource);
+                    lastBearingSource = null;
                 }
-            }
 
-            if (matchCounter == 0 && settingsManager.useGPSAsBearingSource()) {
-                settingsManager.setBearingSource(SettingsManager.BearingSource.COMPASS);
-                messageToast.setText(
-                        mContext.getResources().getString(R.string.messageSwitchedToCompass));
-                messageToast.show();
-            }
-            if (matchCounter == maxNumberOfMatches && settingsManager.useCompassAsBearingSource()) {
-                settingsManager.setBearingSource(SettingsManager.BearingSource.GPS);
-                messageToast.setText(
-                        mContext.getResources().getString(R.string.messageSwitchedToGPS));
-                messageToast.show();
+                // check, if the diff between the location bearing value and the current compass is
+                // smaller than the defined threshold
+                // 0 <= diff <= 180
+                int diff = Math.abs(bearingOfGPS - bearingOfMagneticField[0]);
+                if (diff > 180)
+                    diff = 360 - diff;
+                if (location.hasSpeed() && location.getSpeed() > 3.0) {
+                    if (diff < smallThresholdValue || diff > 180-smallThresholdValue) {
+                        if (matchCounter > 0)
+                            matchCounter -= 1;
+                    } else if (diff > bigThresholdValueDrive && diff < 180-bigThresholdValueDrive) {
+                        if (matchCounter < maxNumberOfMatches)
+                            matchCounter += 1;
+                    }
+                } else {
+                    if (diff < smallThresholdValue) {
+                        if (matchCounter > 0)
+                            matchCounter -= 1;
+                    } else if (diff > bigThresholdValueWalk) {
+                        if (matchCounter < maxNumberOfMatches)
+                            matchCounter += 1;
+                    }
+                }
+
+                if (matchCounter == 0 && settingsManager.useGPSAsBearingSource()) {
+                    settingsManager.setBearingSource(SettingsManager.BearingSource.COMPASS);
+                    messageToast.setText(
+                            mContext.getResources().getString(R.string.messageSwitchedToCompass));
+                    messageToast.show();
+                }
+                if (matchCounter == maxNumberOfMatches && settingsManager.useCompassAsBearingSource()) {
+                    settingsManager.setBearingSource(SettingsManager.BearingSource.GPS);
+                    messageToast.setText(
+                            mContext.getResources().getString(R.string.messageSwitchedToGPS));
+                    messageToast.show();
+                }
             }
 
             if (settingsManager.useGPSAsBearingSource()

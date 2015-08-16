@@ -492,6 +492,12 @@ public class ObjectParser {
         } catch (JSONException e) {}
         // station properties
         try {
+            JSONArray vehicles = p.getJSONArray("vehicles");
+            for (int j=0; j<vehicles.length(); j++) {
+                station.addVehicle(vehicles.getString(j));
+            }
+        } catch (JSONException e) {}
+        try {
             JSONArray lines = p.getJSONArray("lines");
             for (int j=0; j<lines.length(); j++) {
                 station.addLine(
@@ -562,7 +568,10 @@ public class ObjectParser {
             poi.addPhone(p.getString("phone"));
         } catch (JSONException e) {}
         try {
-            poi.addTrafficSignalsAccessibility(p.getInt("traffic_signals_accessibility"));
+            poi.addTrafficSignalsSound(p.getInt("traffic_signals_sound"));
+        } catch (JSONException e) {}
+        try {
+            poi.addTrafficSignalsVibration(p.getInt("traffic_signals_vibration"));
         } catch (JSONException e) {}
         // get outer building if available
         try {

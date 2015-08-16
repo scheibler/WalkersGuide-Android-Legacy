@@ -99,6 +99,7 @@
     <string name="buttonExportRouteToFile">Route exportieren</string>
     <string name="messageRouteExportError">Beim exportieren der Route ist ein Fehler aufgetreten.</string>
     <string name="messageRouteExportSuccessful">Die Route wurde erfolgreich in den Import-Ordner exportiert.</string>
+    <string name="labelRouteDialogRouteFactor">Faktor für Umweg:</string>
     <string name="labelRouteDialogWayClasses">Die folgenden Wegklassen werden für das Routing verwendet:</string>
     <string name="checkBoxBigStreets">Große Straßen</string>
     <string name="checkBoxSmallStreets">Kleine Straßen</string>
@@ -149,24 +150,26 @@
     <string name="messagePointDescInterInterStraightWithName">Die Kreuzung %1$s geradeaus überqueren und auf %2$s weitergehen.</string>
     <string name="messagePointDescInterDestination">Zielpunkt ist die Kreuzung %s.</string>
     <string name="messagePointDescStationStart">Startpunkt: %s</string>
-    <string name="messagePointDescStationInter">Zwischenziel: %s</string>
-    <string name="messagePointDescStationInterStraight">. Jetzt geradeaus weiterlaufen.</string>
-    <string name="messagePointDescStationInterBehindYou">. Jetzt umdrehen.</string>
-    <string name="messagePointDescStationInterTurn">. Jetzt nach %s abbiegen.</string>
+    <string name="messagePointDescStationInterAhead">Zwischenziel: %s. Anschließend geradeaus weitergehen</string>
+    <string name="messagePointDescStationInterBehind">Zwischenziel: %s. Anschließend umdrehen</string>
+    <string name="messagePointDescStationInterTurn">Zwischenziel: %1$s. Anschließend nach %2$s abbiegen</string>
+    <string name="messagePointDescStationInterNoTurnValue">Zwischenziel: %s</string>
     <string name="messagePointDescStationDestination">Zielpunkt: %s</string>
     <string name="messagePointDescWayPointStart">Startpunkt ist dieser Wegpunkt.</string>
     <string name="messagePointDescWayPointInterAhead">Anschließend geradeaus gehen und dem aktuellen Weg folgen.</string>
+    <string name="messagePointDescWayPointInterBehind">Anschließend umdrehen und dem aktuellen Weg folgen.</string>
     <string name="messagePointDescWayPointInterTurn">Anschließend %s halten und dem aktuellen Weg folgen.</string>
+    <string name="messagePointDescWayPointInterNoTurnValue">Zwischenziel: Wegpunkt.</string>
     <string name="messagePointDescWayPointDestination">Zielpunkt ist dieser Wegpunkt.</string>
     <string name="messageNoFurtherRoutePoint">Kein weiterer Routenpunkt mehr verfügbar</string>
     <string name="messageFirstRoutePoint">Bereits beim ersten Routenpunkt</string>
-    <string name="messagePreviousPoint">Vorheriges Segment</string>
-    <string name="messageNextPointFootway">Nächstes Segment: %1$d Meter auf %2$s</string>
-    <string name="messageNextPointTransport">Nächstes Segment: Fahrt mit der %1$s, Abfahrt um %2$s.</string>
+    <string name="messagePreviousPoint">Vorheriges Segment: %1$s. %2$s</string>
+    <string name="messageNextPoint">Nächstes Segment: %1$s. %2$s</string>
     <string name="messageLastRoutePoint">Bereits beim letzten Routenpunkt</string>
     <string name="messageSegmentDescFootway">%1$d Meter auf %2$s (%3$s)</string>
     <string name="messageSegmentDescTransport">Fahrt mit der %1$s, Abfahrt um %2$s, Dauer: %3$s, Anzahl Zwischenstops: %4$d.</string>
     <string name="messageSegmentDescStart">Der Startpunkt der Route ist %d Meter entfernt.</string>
+    <string name="messageDistanceAndBearingWithoutCompass">%1$d m, %2$s</string>
     <string name="messageDistanceAndBearing">%1$d m, %2$s;     Kompass: %3$s</string>
     <string name="messagePointProgress">Punkt %1$d von %2$d</string>
 
@@ -220,6 +223,8 @@
     <string name="messagePickUpDeviceGPS">Die richtungsangaben werden derzeit vom GPS Signal
         bereitgestellt. Bitte bewegen Sie sich außerhalb von Gebäuden ein paar Meter, um einen
         Richtungswert zu erzeugen.</string>
+    <string name="messageRefreshPOIList">Aktualisiere...</string>
+    <string name="messageRefreshPOIListCanceled">abgebrochen</string>
 
     <!-- Dialog: showEntrancesDialog -->
     <string name="labelEntranceDialogHeading">Objekt: %s</string>
@@ -257,9 +262,12 @@
     <!-- Class: SettingsActivity -->
     <string name="title_application_settings">Einstellungen</string>
     <string name="labelSettingsActivityHeading">Einstellungen</string>
-    <string name="labelSettingsActivityRouteSubHeading">Route</string>
-    <string name="labelSettingsActivityRouteFactor">Faktor für Umweg:</string>
-    <string name="messageRouteFactorInvalid">Der ausgewählte Umwegfaktor ist ungültig</string>
+    <string name="labelStayActiveDescription">Hintergrundaktivität: Wird die nachfolgende Option aktiviert,
+        bleibt die App auch im Hintergrund aktiv, um u. a. eine Navigation bei gesperrtem Bildschirm
+        zu ermöglichen. Damit geht aber auch ein erhöhter Stromverbrauch einher.</string>
+    <string name="buttonStayActive">Hintergrundaktivität:</string>
+    <string name="buttonStayActiveNo">Hintergrundaktivität: Aus</string>
+    <string name="buttonStayActiveYes">Hintergrundaktivität: Ein</string>
     <string name="labelShakeDescription">Schüttelfunktion: Wenn sie die folgende Option aktivieren,
         können Sie im Router-Tab durch Schütteln des Geräts zum nächsten Routenpunkt springen und im
         POI-Tab die Liste der POI aktualisieren. In der nebenstehenden Ausklappliste lässt sich der
@@ -287,6 +295,7 @@
     <string name="hintServerPort">Port des Navigationsservers eingeben</string>
     <string name="messageServerPortEmpty">Server Port ist leer</string>
     <string name="messageServerPortInvalid">Eingegebener Port ist ungültig</string>
+    <string name="labelSettingsActivityImportExportSubHeading">Import und Export</string>
     <string name="buttonStoreToDisk">Einstellungen exportieren</string>
     <string name="buttonRestoreFromDisk">Einstellungen importieren</string>
     <string name="messageImExOK">%s: OK\n</string>
@@ -314,18 +323,27 @@
     <string name="labelPOICategoryDisabled">POI Updates deaktiviert</string>
     <string name="labelPOICategoryFavorites">Eigene Favoriten</string>
     <string name="labelPOICategoryTransport">Bus- und Bahnhaltestellen</string>
+    <string name="labelPOICategoryBusTram">Bus- und Straßenbahnhaltestellen</string>
+    <string name="labelPOICategoryTrain">Bahnhöfe, S- und U-Bahnhaltestellen</string>
+    <string name="labelPOICategoryAirportFerry">Fähren, Seilbahnen und Flughäfen</string>
+    <string name="labelPOICategoryTaxi">Taxis</string>
     <string name="labelPOICategoryFood">Essen und Trinken</string>
     <string name="labelPOICategoryTourism">Tourismus</string>
     <string name="labelPOICategoryShop">Shopping</string>
     <string name="labelPOICategoryHealth">Gesundheit</string>
     <string name="labelPOICategoryEducation">Bildung</string>
     <string name="labelPOICategoryFinance">Finanzen</string>
-    <string name="labelPOICategoryEntertainment">Unterhaltung</string>
+    <string name="labelPOICategoryEntertainment">Sport und Unterhaltung</string>
     <string name="labelPOICategoryPublicService">Öffentliche Einrichtungen</string>
+    <string name="labelPOICategoryBuildingsWithName">Alle Gebäude mit Namen</string>
+    <string name="labelPOICategorySurveillance">Überwachungskameras</string>
+    <string name="labelPOICategoryBench">Bänke</string>
+    <string name="labelPOICategoryTrash">Mülleimer</string>
+    <string name="labelPOICategoryNature">Seen und Berge</string>
+    <string name="labelPOICategoryBridge">Brücken</string>
     <string name="labelPOICategoryNamedIntersection">Kreuzungen mit Namen</string>
     <string name="labelPOICategoryOtherIntersection">Kreuzungen ohne Namen</string>
-    <string name="labelPOICategoryTrafficSignals">Ampeln</string>
-    <string name="labelPOICategoryTrash">Mülleimer</string>
+    <string name="labelPOICategoryPedestrianCrossings">Ampeln und Fußgängerüberwege</string>
 
     <!-- Class: EnterPOIPresetNameActivity -->
     <string name="title_enter_poi_preset_name_activity">Neues POI Profil</string>
@@ -436,8 +454,8 @@
     <string name="labelObjectDistanceAndBearingUnknown">Entfernung: Unbekannt</string>
     <string name="labelObjectDistanceAndBearing">Entfernung: %1$d m, %2$s</string>
     <string name="labelPreferencesHeading">Eigenschaften</string>
-    <string name="labelTrafficSignals">Ampeln: Ja (%d in der Nähe)</string>
-    <string name="labelNoTrafficSignals">Ampeln: Nein</string>
+    <string name="labelTrafficSignals">Straßenquerungen: Ja (%d in der Nähe)</string>
+    <string name="labelNoTrafficSignals">Straßenquerungen: Nein</string>
     <string name="labelNumberOfIntersectionWays">Kreuzung mit %d Straßen</string>
     <string name="radioButtonWalkingDirection">Laufrichtung (%s)</string>
     <string name="radioButtonDirectionNorth">Eingenordet</string>
@@ -587,6 +605,8 @@
     <string name="roPointWheelchairNo">Rollstuhlgeeignet: Nein</string>
     <string name="roPointWheelchairPartly">Rollstuhlgeeignet: Teilweise</string>
     <string name="roPointWheelchairYes">Rollstuhlgeeignet: Ja</string>
+    <string name="roPointTrafficSignalsSound">Akustisches Ampelsignal: %s</string>
+    <string name="roPointTrafficSignalsVibration">Taktiles Ampelsignal: %s</string>
     <string name="roPointOneEntrance">, 1 Eingang</string>
     <string name="roPointMultipleEntrances">, %d Eingänge</string>
     <string name="roPointTurn">, Richtung: %s</string>

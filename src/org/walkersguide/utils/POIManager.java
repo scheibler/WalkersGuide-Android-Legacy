@@ -146,7 +146,9 @@ public class POIManager {
             return;
         }
         
-        poiListener.poiPresetUpdateSuccessful();
+        if (poiListener != null) {
+            poiListener.poiPresetUpdateSuccessful();
+        }
     }
 
     public void sortPOIList(ArrayList<Point> poiList) {
@@ -180,7 +182,9 @@ public class POIManager {
         Collections.sort(sortedPOIList);
         preset.setPOIList(sortedPOIList);
         settingsManager.updatePOIPreset(preset);
-        poiListener.poiPresetUpdateSuccessful();
+        if (poiListener != null) {
+            poiListener.poiPresetUpdateSuccessful();
+        }
     }
 
     private class POIDownloadListener implements DataDownloader.DataDownloadListener {
@@ -191,7 +195,9 @@ public class POIManager {
                 sortPOIList( ObjectParser.parsePointList(jsonObject) );
             } catch (PointListParsingException e) {
                 preset.setLastLocation(null);
-                poiListener.poiPresetUpdateFailed(e.getMessage());
+                if (poiListener != null) {
+                    poiListener.poiPresetUpdateFailed(e.getMessage());
+                }
             }
         }
 
@@ -199,8 +205,10 @@ public class POIManager {
             poiDownloader = null;
             downloadInProcess = false;
             preset.setLastLocation(null);
-            poiListener.poiPresetUpdateFailed( String.format(
-                    mContext.getResources().getString(R.string.messageNetworkError), error));
+            if (poiListener != null) {
+                poiListener.poiPresetUpdateFailed( String.format(
+                        mContext.getResources().getString(R.string.messageNetworkError), error));
+            }
         }
 
         @Override public void dataDownloadCanceled() {

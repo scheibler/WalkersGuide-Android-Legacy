@@ -81,6 +81,33 @@ public class RouteObjectWrapper {
         return this.transport;
     }
 
+    /**
+     * routing instruction for this intersection
+     * routeIndex:
+     *      0: first route object
+     *      1: intermediate route object
+     *      2:  last route object
+     */
+    public String getRoutingPointInstruction(int routeIndex) {
+        if (wayPoint != null)
+            return this.wayPoint.getRoutingPointInstruction(routeIndex);
+        else if (intersection != null)
+            return this.intersection.getRoutingPointInstruction(routeIndex);
+        else if (station !=null)
+            return this.station.getRoutingPointInstruction(routeIndex);
+        else if (poi != null)
+            return this.poi.getRoutingPointInstruction(routeIndex);
+        return "";
+    }
+
+    public String getRoutingSegmentInstruction() {
+        if (footway != null)
+            return this.footway.getRoutingSegmentInstruction();
+        else if (transport != null)
+            return this.transport.getRoutingSegmentInstruction();
+        return "";
+    }
+
     public String toString() {
         if (wayPoint != null)
             return this.wayPoint.toString();
