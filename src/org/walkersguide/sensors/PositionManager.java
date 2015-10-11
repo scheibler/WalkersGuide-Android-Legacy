@@ -3,6 +3,7 @@ package org.walkersguide.sensors;
 import org.walkersguide.R;
 import org.walkersguide.routeobjects.Point;
 import org.walkersguide.userinterface.DialogActivity;
+import org.walkersguide.utils.DataLogger;
 import org.walkersguide.utils.Globals;
 import org.walkersguide.utils.SettingsManager;
 
@@ -45,6 +46,7 @@ public class PositionManager implements ConnectionCallbacks, OnConnectionFailedL
     private Toast messageToast;
     private SettingsManager settingsManager;
     private Vibrator vibrator;
+    private DataLogger logger;
 
     private Status status;
     private boolean simulationActivated;
@@ -73,6 +75,9 @@ public class PositionManager implements ConnectionCallbacks, OnConnectionFailedL
         vibrator = (Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE);
         lastMatchTime = System.currentTimeMillis();
         diffBetweenTwoFixesInMilliseconds = 5000;
+        //logger = new DataLogger(
+        //        settingsManager.getProgramLogFolder() + "/gps_data.txt", false);
+
         // Figure out if we have a location somewhere that we can use as a current best location
         Location lastKnownSavedLocation = settingsManager.loadLastLocation();
         if (isBetterLocation(lastKnownSavedLocation, currentBestLocation))
@@ -176,12 +181,18 @@ public class PositionManager implements ConnectionCallbacks, OnConnectionFailedL
                 status = newStatus;
                 return;
             case GPS:
-                locationClient = new GoogleApiClient.Builder(mContext)
-                    .addApi(LocationServices.API)
-                    .addConnectionCallbacks(this)
-                    .addOnConnectionFailedListener(this)
-                    .build();
-                locationClient.connect();
+                // fused location provider initialization
+                // due to location accuracy problems with the fused provider we use androids location manager again
+                //locationClient = new GoogleApiClient.Builder(mContext)
+                //    .addApi(LocationServices.API)
+                //    .addConnectionCallbacks(this)
+                //    .addOnConnectionFailedListener(this)
+                //    .build();
+                //locationClient.connect();
+                locationClient = null;
+                locationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 10000, 0, this);
                 gpsTimer.reset();
                 mHandler.postDelayed(gpsTimer, 5000);
                 currentBestLocation = settingsManager.loadLastLocation();
@@ -217,13 +228,14 @@ public class PositionManager implements ConnectionCallbacks, OnConnectionFailedL
 
         // define log variables
         boolean locationAccepted = false;
+
         // Check whether the new location fix is newer or older
         long timeDelta = location.getTime() - currentBestLocation.getTime();
-        boolean isOlder = timeDelta < -2000;
         boolean isNewer = timeDelta > 0;
-        boolean isABitNewer = timeDelta > 5000;
-        boolean isSignificantlyNewer = timeDelta > 10000;
+        boolean isABitNewer = timeDelta > 10000;
+        boolean isSignificantlyNewer = timeDelta > 20000;
         boolean isMuchMuchNewer = timeDelta > 180000;
+
         // Check whether the new location fix is more or less accurate
         int accuracyDelta = (int) (location.getAccuracy() - currentBestLocation.getAccuracy());
         int accuracyThresholdValue = 15;
@@ -244,13 +256,8 @@ public class PositionManager implements ConnectionCallbacks, OnConnectionFailedL
         boolean isFromSameProvider = isSameProvider(location.getProvider(),
                 currentBestLocation.getProvider());
 
-        // if the location is older than the currentBestLocation, drop it
-        if (isOlder) {
-            return false;
-        }
-
         // Determine location quality using a combination of timeliness and accuracy
-        if (isMoreAccurateThanThresholdValue) {
+        if (isNewer && isMoreAccurateThanThresholdValue) {
             locationAccepted = true;
         } else if (isNewer && isMoreAccurate && isFromSameProvider) {
             locationAccepted = true;
@@ -261,6 +268,11 @@ public class PositionManager implements ConnectionCallbacks, OnConnectionFailedL
         } else if (isMuchMuchNewer) {
             locationAccepted = true;
         }
+
+        // log location data
+        //logger.appendLog(locationAccepted + ": td = " + timeDelta + " / " + (System.currentTimeMillis() - location.getTime()) + ";    "
+        //        + "ad = " + accuracyDelta + " (" + location.getAccuracy() + " / " + currentBestLocation.getAccuracy() + ");   "
+        //        + "p = " + location.getProvider() + ";   time = " + DateFormat.getTimeInstance().format(new Date(location.getTime())));
         return locationAccepted;
     }
 
@@ -278,8 +290,9 @@ public class PositionManager implements ConnectionCallbacks, OnConnectionFailedL
             currentBestLocation = newLocation;
             gpsTimer.updateTimeOfLastAcceptedFix();
             settingsManager.storeLastLocation(currentBestLocation);
-            if (pFilteredListener != null)
+            if (pFilteredListener != null) {
                 pFilteredListener.locationChanged(currentBestLocation);
+            }
             if (globalData.applicationInBackground())
                 diffBetweenTwoFixesInMilliseconds = 2000;
             else

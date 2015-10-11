@@ -81,6 +81,7 @@ public class Route {
         else
             return new RouteObjectWrapper();
     }
+
     public int getListPosition() {
         return this.pointIndex;
     }

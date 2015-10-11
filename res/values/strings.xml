@@ -165,7 +165,7 @@
     <string name="messageSegmentDescFootway">%1$d Meters at %2$s (%3$s)</string>
     <string name="messageSegmentDescTransport">Travel with %1$s, Departure at %2$s, Duration: %3$s, %4$d intermediate stops.</string>
     <string name="messageSegmentDescStart">This route starting point is %d meters from here.</string>
-    <string name="messageDistanceAndBearingWithoutCompass">%1$d m, %2$s</string>
+    <string name="messageDistanceAndBearingWithoutCompass">Distance: %1$d m, %2$s</string>
     <string name="messageDistanceAndBearing">%1$d m, %2$s;     Compass: %3$s</string>
     <string name="messagePointProgress">Point %1$d of %2$d</string>
 

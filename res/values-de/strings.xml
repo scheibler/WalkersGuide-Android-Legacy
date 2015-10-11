@@ -169,7 +169,7 @@
     <string name="messageSegmentDescFootway">%1$d Meter auf %2$s (%3$s)</string>
     <string name="messageSegmentDescTransport">Fahrt mit der %1$s, Abfahrt um %2$s, Dauer: %3$s, Anzahl Zwischenstops: %4$d.</string>
     <string name="messageSegmentDescStart">Der Startpunkt der Route ist %d Meter entfernt.</string>
-    <string name="messageDistanceAndBearingWithoutCompass">%1$d m, %2$s</string>
+    <string name="messageDistanceAndBearingWithoutCompass">Entfernung: %1$d m, %2$s</string>
     <string name="messageDistanceAndBearing">%1$d m, %2$s;     Kompass: %3$s</string>
     <string name="messagePointProgress">Punkt %1$d von %2$d</string>
 

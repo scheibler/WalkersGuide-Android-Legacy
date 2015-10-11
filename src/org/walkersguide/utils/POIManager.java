@@ -52,12 +52,12 @@ public class POIManager {
 
     public void updatePOIList(int newPresetId, int newPresetRange, Point newLocation, int newCompassValue,
             String newSearchString, boolean isInsidePublicTransport) {
-        if (newLocation == null || downloadInProcess == true) {
-            return;
-        }
-
         // get the current preset by means of the given preset id
         preset = settingsManager.getPOIPreset(newPresetId);
+
+        if (preset == null || newLocation == null || downloadInProcess == true) {
+            return;
+        }
 
         // decide, if the program should download new poi data from server
         boolean downloadNewData = false;

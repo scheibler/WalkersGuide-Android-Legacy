@@ -902,12 +902,12 @@ public class RouterFragment extends AbstractFragment {
     }
 
     public void queryPOIListUpdate() {
+        POIPreset preset = settingsManager.getPOIPreset(settingsManager.getPresetIdInRouterFragment());
         if (currentLocation == null
                 || currentCompassValue < 0
-                || settingsManager.getPresetIdInRouterFragment() < 1) {
+                || preset == null) {
             return;
         }
-        POIPreset preset = settingsManager.getPOIPreset(settingsManager.getPresetIdInRouterFragment());
         boolean isInsidePublicTransport = false;
         if (numberOfHighSpeeds > 0)
             isInsidePublicTransport = true;
@@ -1064,7 +1064,7 @@ public class RouterFragment extends AbstractFragment {
                         speakMe += ". " + String.format(
                                 getResources().getString(R.string.messageDynamicIntersectionDescription),
                                 route.getNextPoint().getIntersection().getIntersectionStructure(
-                                    currentCompassValue,
+                                    route.getNextSegment().getFootwaySegment().getBearing(),
                                     route.getNextSegment().getFootwaySegment().getBearing(), true));
                     }
                 }
@@ -1198,7 +1198,8 @@ public class RouterFragment extends AbstractFragment {
                                     getResources().getString(R.string.messageTwentyFiveMetersFromIntersection),
                                     nextPoint.getIntersection().getName(),
                                     nextPoint.getIntersection().getIntersectionStructure(
-                                            currentCompassValue, nextSegment.getFootwaySegment().getBearing(), true) );
+                                            nextSegment.getFootwaySegment().getBearing(),
+                                            nextSegment.getFootwaySegment().getBearing(), true) );
                         } else {
                             instruction = String.format(
                                     getResources().getString(R.string.messageTwentyFiveMeters));
